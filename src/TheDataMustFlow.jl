@@ -1,5 +1,16 @@
+__precompile__(true)
+
 module TheDataMustFlow
 
-# package code goes here
+using DataStreams
+
+import Base.filter
+
+const DEFAULT_FILTER_BATCH_SIZE = 16384
+
+include("abstracts.jl")
+include("datastreams_extensions.jl")
+include("streamfilter.jl")
+include("harvester.jl")
 
 end # module
