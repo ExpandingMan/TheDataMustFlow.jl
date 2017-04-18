@@ -9,28 +9,26 @@ struct Harvester <: AbstractHarvester
 
     Xcols::Vector{Symbol}
     ycols::Vector{Symbol}
-    filtercols::Vector{Symbol}
-
-    batch_size::UInt32
 
     function Harvester(src, sch::Data.Schema, Xcols::AbstractVector{Symbol},
-                       ycol::AbstractVector{Symbol}, filtercols::AbstractVector{Symbol},
-                       batch_size::Integer)
-        new(src, sch, convert(Vector{Symbol}, Xcols), convert(Vector{Symbol}, ycols),
-            convert(Vector{Symbol}, filtercols), UInt32(batch_size))
+                       ycol::AbstractVector{Symbol})
+        new(src, sch, convert(Vector{Symbol}, Xcols), convert(Vector{Symbol}, ycols))
     end
-    function Harvester(src, Xcols::AbstractVector{Symbol}, ycols::AbstractVector{Symbol},
-                       filtercols::AbstractVector{Symbol}, batch_size::Integer)
-        Harvester(src, Data.schema(src), Xcols, ycols, filtercols, batch_size)
+    function Harvester(src, Xcols::AbstractVector{Symbol}, ycols::AbstractVector{Symbol})
+        Harvester(src, Data.schema(src), Xcols, ycols)
     end
 end
 
 
+Xcolidx(h::Harvester) = colidx(h, h.Xcols)
+ycolidx(h::Harvester) = colidx(h, h.ycols)
 
-# TODO: for now I'm writing a function to get the whole dataset, just to figure out how
-# this is going to work
-function harvest{T}(h::Harvester, f::StreamFilter, ::Type{T})
 
+function harvest{TX,Ty}(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{TX}, ::Type{Ty})
+    Xcols = Xcolidx(h)
+    ycols = ycolidx(h)
+    allcols = collect(Set(Xcols) ∪ Set(ycols))
+    # to be continued
 end
 
 

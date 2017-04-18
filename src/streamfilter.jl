@@ -25,11 +25,13 @@ struct StreamFilter <: AbstractStreamFilter
         StreamFilter(src, Data.schema(src), filtercols, filterfuncs)
     end
 end
+export StreamFilter
 
 
 #=========================================================================================
     <interface>
 =========================================================================================#
+colidx(f::StreamFilter) = colidx(f, f.filtercols)
 colidx(f::StreamFilter) = Int[f.schema[string(n)] for n ∈ f.filtercols]
 
 function rowtype(f::StreamFilter)
@@ -47,7 +49,7 @@ function _index_batch(f::StreamFilter, cols::AbstractVector{<:Integer},
     allcols = Vector{AbstractVector{Bool}}(length(f.filtercols))
     for i ∈ 1:length(f.filtercols)
         allcols[i] = sift(f.src, f.filterfuncs[i], ctypes[i], cols[i],
-                          start_idx, stop_idx)
+                          batch_idx)
     end
     mask = .&(allcols...)
     find(mask)
@@ -56,12 +58,13 @@ function index{T}(f::StreamFilter, idx::AbstractVector{T};
                   batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
     cols = colidx(f)
     ctypes = coltypes(f.schema, cols)
-    o = Vector{T}()
+    o = Vector{T}()  # it's impossible to know the length of this a priori
     for batch_idx ∈ batchiter(idx, batch_size)
         append!(o, _index_batch(f, cols, ctypes, batch_idx))
     end
     o
 end
+export index
 #=========================================================================================
     <interface>
 =========================================================================================#
