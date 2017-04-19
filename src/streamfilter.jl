@@ -31,8 +31,7 @@ export StreamFilter
 #=========================================================================================
     <interface>
 =========================================================================================#
-colidx(f::StreamFilter) = colidx(f, f.filtercols)
-colidx(f::StreamFilter) = Int[f.schema[string(n)] for n ∈ f.filtercols]
+colidx(f::StreamFilter) = colidx(f.schema, f.filtercols)
 
 function rowtype(f::StreamFilter)
     header = Data.header(f.schema)

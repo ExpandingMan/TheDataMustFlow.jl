@@ -22,6 +22,16 @@ function streamfrom{T}(src, ::Type{Data.Column}, ::Type{NullableVector{T}},
 end
 
 
+# TODO make types more configurable
+function coerce{T,U}(src, ::Type{T}, ::Type{U}, idx::AbstractVector{<:Integer}, c::Integer)
+    convert(Vector{T}, streamfrom(src, Data.Column, Vector{U}, idx, c))
+end
+function coerce{T,U}(src, ::Type{T}, ::Type{Nullable{U}}, idx::AbstractVector{<:Integer},
+                     c::Integer)
+    convert(Vector{T}, streamfrom(src, Data.Column, NullableVector{U}, idx, c))
+end
+
+
 # TODO user needs to have option about whether to use this
 _apply_nolift(f::Function, v::AbstractVector) = f.(v)
 function _apply_nolift(f::Function, v::NullableVector)

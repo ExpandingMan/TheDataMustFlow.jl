@@ -1,6 +1,6 @@
 
 # this function works for anything with a schema field
-colidx(f, cols::AbstractVector{Symbol}) = Int[f.schema[string(n)] for n ∈ cols]
+colidx(sch::Data.Schema, cols::AbstractVector{Symbol}) = Int[sch[string(n)] for n ∈ cols]
 
 
 #=========================================================================================
@@ -46,6 +46,7 @@ function Base.next{T,K<:AbstractVector{T}}(iter::BatchIterator{T,K}, state::Int)
 end
 
 Base.done(iter::BatchIterator, state::Integer) = state > iter.N
+Base.length(iter::BatchIterator) = iter.N
 
 
 function batchiter(idx::AbstractVector{<:Integer}, batch_size::Integer)
