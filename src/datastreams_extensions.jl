@@ -22,6 +22,16 @@ function streamfrom{T}(src, ::Type{Data.Column}, ::Type{NullableVector{T}},
 end
 
 
+# TODO may have to include streamto! schema argument
+# again, hopefully these will be added to DataStreams at some point
+function streamto!{T}(sink, ::Type{Data.Column}, v::T, rows::AbstractVector{<:Integer},
+                      col::Integer, sch::Data.Schema)
+    for (i, row) ∈ enumerate(rows)
+        Data.streamto!(sink, Data.Field, v[i], row, col, sch)
+    end
+end
+
+
 # TODO make types more configurable
 function coerce{T,U}(src, ::Type{T}, ::Type{U}, idx::AbstractVector{<:Integer}, c::Integer)
     convert(Vector{T}, streamfrom(src, Data.Column, Vector{U}, idx, c))

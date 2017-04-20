@@ -3,6 +3,22 @@
 # TODO for now everything is one row at a time, at some point must do blocks
 
 
+"""
+# Type: `Harvester`
+
+This data type wraps an object `src` that implements the `DataStreams` source interface.
+It is used for reformatting data into raw matrices appropriate for machine learning.
+
+See `harvest`.
+
+## Constructors
+
+    Harvester(src, Xcols, ycols)
+
+One should pass a source object from which to gather data which will be placed into matrices
+`X` and `y`, the columns of which correspond to the columns of `src` specified by `Xcols`
+and `ycols` respectively.
+"""
 struct Harvester <: AbstractHarvester
     src::Any
     schema::Data.Schema
@@ -41,8 +57,19 @@ function _harvest_batch{T}(h::Harvester, ::Type{T},
         Xcol ≠ 0 && (X[:, Xcol] .= v)
         ycol ≠ 0 && (y[:, ycol] .= v)
     end
-    X, y
+    X, y, bidx
 end
+
+"""
+    harvest(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{dtype},
+            batch_size::Integer=DEFAULT)
+
+Return an iterator that iterates over `X,y,batch_idx` where `X,y` are raw matrices with
+element type `dtype` intended for machine learning consumption and `batch_idx` is a vector
+of the indices associated with the rows of `X` and `y`.  The complete set of iterations
+will cover all indices in `idx`.  This will be done in batches of size `batch_size`
+(i.e. `X` and `y` will have `batch_size` rows).
+"""
 function harvest{T}(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{T};
                     batch_size::Integer=DEFAULT_HARVEST_BATCH_SIZE)
     Xcols = Xcolidx(h);  Xwidth = length(Xcols)

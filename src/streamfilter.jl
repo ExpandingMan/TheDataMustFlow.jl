@@ -2,6 +2,21 @@
 # TODO for now everything is one row at a time, at some point we must do blocks
 
 # this should be able to handle sources with nulls
+"""
+# Type: `StreamFilter`
+
+This data type wraps an object `src` that implements the `DataStreams` source interface.
+It is used for determining which rows of the source satisfy certain conditions.
+
+## Constructors
+
+    StreamFilter(src, filtercols::Vector{Symbol}, filterfuncs::Vector{Function})
+
+One should pass a source object for which the appropriate rows will be determined.
+The functions in `filterfuncs` should be functions which apply to elements of the respective
+column given in `filtercols` and return booleans.  Indices for rows for which all of these
+booleans are true are returned.
+"""
 struct StreamFilter <: AbstractStreamFilter
     src::Any
     schema::Data.Schema
@@ -33,6 +48,11 @@ export StreamFilter
 =========================================================================================#
 colidx(f::StreamFilter) = colidx(f.schema, f.filtercols)
 
+"""
+    rowtype(f::StreamFilter)
+
+Gets a `Tuple` type of the row in the source of `f`.
+"""
 function rowtype(f::StreamFilter)
     header = Data.header(f.schema)
     dtypes = Data.types(f.schema)
@@ -42,6 +62,7 @@ function rowtype(f::StreamFilter)
 end
 
 
+# helper function for index
 function _index_batch(f::StreamFilter, cols::AbstractVector{<:Integer},
                       ctypes::AbstractVector{DataType},
                       batch_idx::AbstractVector{<:Integer})
@@ -51,10 +72,17 @@ function _index_batch(f::StreamFilter, cols::AbstractVector{<:Integer},
                           batch_idx)
     end
     mask = .&(allcols...)
-    find(mask)
+    find(mask) + batch_idx[1] - 1
 end
-function index{T}(f::StreamFilter, idx::AbstractVector{T};
-                  batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
+
+"""
+    index(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
+
+Determine the indices determined by the stream filter.  These indices will be members of
+`idx` for which the `StreamFilter` source satisfies the functions in was created with.
+"""
+function index{T<:Integer}(f::StreamFilter, idx::AbstractVector{T};
+                           batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
     cols = colidx(f)
     ctypes = coltypes(f.schema, cols)
     o = Vector{T}()  # it's impossible to know the length of this a priori

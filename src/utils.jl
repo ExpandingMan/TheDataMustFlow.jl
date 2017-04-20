@@ -1,6 +1,8 @@
 
-# this function works for anything with a schema field
-colidx(sch::Data.Schema, cols::AbstractVector{Symbol}) = Int[sch[string(n)] for n ∈ cols]
+colidx(sch::Data.Schema, n::Union{String,Symbol}) = sch[string(n)]
+function colidx{T<:Union{String,Symbol}}(sch::Data.Schema, cols::AbstractVector{T})
+    Int[colidx(sch,n) for n ∈ cols]
+end
 
 
 #=========================================================================================
