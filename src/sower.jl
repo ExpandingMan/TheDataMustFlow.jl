@@ -56,7 +56,7 @@ function _migrate_batch!(s::Sower, src, colmap::Dict, fromtypes::Dict, totypes::
 end
 
 """
-    migrate!(s::Sower, src, cols::AbstractVector{Symbol}, idx::AbstractVector{<:Integer};
+    migrate!(s::Sower, src[, cols::AbstractVector{Symbol}], idx::AbstractVector{<:Integer};
              namemap::Dict=Dict(), batch_size::Integer=DEFAULT, index_map::Function=identity)
 
 Transfers columns `cols` from the source `src` (which must implement the `DataStreams` source
@@ -64,7 +64,8 @@ interface) to the `Sower`s sink.  This will occur only for the index `idx` of th
 If the columns in the sink have different names from those in the source, entries should
 appear in `namemap` in the form `source_name=>sink_name`.  The transfer will be done in
 batches of size `batch_size`.  The index `i` to which data is written will be
-`index_map(α)` where `α` is the source index.
+`index_map(α)` where `α` is the source index.  If the `cols` argument is omitted, all columns
+from the source will be used.
 """
 function migrate!(s::Sower, src, cols::AbstractVector{Symbol},
                   idx::AbstractVector{<:Integer}; namemap::Dict=Dict(),
@@ -73,7 +74,7 @@ function migrate!(s::Sower, src, cols::AbstractVector{Symbol},
     sch = Data.schema(src)
     mcols = colidx(sch, cols)
     colmap = Dict()
-    for (mcol, mcolname) ∈ zip(mcols, s.migratecols)
+    for (mcol, mcolname) ∈ zip(mcols, cols)
         colmap[mcol] = colidx(sch, get(namemap, mcolname, mcolname))
     end
     fromtypes = Data.types(sch)
@@ -81,8 +82,14 @@ function migrate!(s::Sower, src, cols::AbstractVector{Symbol},
     totypes = Data.types(s.schema)
     totypes = Dict(i=>vectortype(totypes[i]) for (k,i) ∈ colmap)
     for batch_idx ∈ batchiter(idx, batch_size)
-        _migrate_batch!(s, colmap, fromtypes, totypes, batch_idx, index_map)
+        _migrate_batch!(s, src, colmap, fromtypes, totypes, batch_idx, index_map)
     end
+end
+function migrate!(s::Sower, src, idx::AbstractVector{<:Integer}; namemap::Dict=Dict(),
+                  batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                  index_map::Function=identity)
+    migrate!(s, src, Symbol.(Data.header(Data.schema(src))), idx, namemap=namemap,
+             batch_size=batch_size, index_map=index_map)
 end
 export migrate!
 

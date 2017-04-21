@@ -13,7 +13,7 @@ See `harvest`.
 
 ## Constructors
 
-    Harvester(src, Xcols, ycols)
+    Harvester(src, Xcols[, ycols])
 
 One should pass a source object from which to gather data which will be placed into matrices
 `X` and `y`, the columns of which correspond to the columns of `src` specified by `Xcols`
@@ -32,6 +32,9 @@ struct Harvester <: AbstractHarvester
     end
     function Harvester(src, Xcols::AbstractVector{Symbol}, ycols::AbstractVector{Symbol})
         Harvester(src, Data.schema(src), Xcols, ycols)
+    end
+    function Harvester(src, Xcols::AbstractVector{Symbol})
+        Harvester(src, Xcols, Symbol[])
     end
 end
 export Harvester

@@ -11,6 +11,7 @@ const DEFAULT_SOW_BATCH_SIZE = 16384
 
 #=========================================================================================
     TODO list:
+        0. Switch to using Tasks in anticipation of parallelization.
     √   1. Finish harvester and sower basic implementation.
     √   -. Sower *must* be able to both insert into existing and extract to new.
         -. Implement source and sink interfaces for Harvester and Sower.
@@ -30,5 +31,6 @@ include("datastreams_extensions.jl")
 include("streamfilter.jl")
 include("harvester.jl")
 include("sower.jl")
+
 
 end # module
