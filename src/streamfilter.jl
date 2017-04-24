@@ -44,7 +44,7 @@ export StreamFilter
 
 
 #=========================================================================================
-    <interface>
+    <basic functions>
 =========================================================================================#
 colidx(f::StreamFilter) = colidx(f.schema, f.filtercols)
 
@@ -75,25 +75,55 @@ function _index_batch(f::StreamFilter, cols::AbstractVector{<:Integer},
     find(mask) + batch_idx[1] - 1
 end
 
+
 """
-    index(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
+    streamfilter(f::StreamFilter)
+
+Return a function `I(idx)` which searches through the indices `idx` of the `StreamFilter`'s
+source for rows satisfying the specified conditions.
+"""
+function streamfilter(f::StreamFilter)
+    cols = colidx(f)
+    ctypes = coltypes(f.schema, cols)
+    idx::AbstractVector{<:Integer} -> _index_batch(f, cols, ctypes, idx)
+end
+export streamfilter
+
+
+"""
+## `StreamFilter`
+
+    batchiter(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
+
+Returns an iterator over batches returning the valid indices within each batch.
+"""
+function batchiter(f::StreamFilter, idx::AbstractVector{<:Integer};
+                   batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
+    filt = streamfilter(f)
+    batchiter(filt, idx, batch_size)
+end
+
+
+"""
+    filterall(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
 
 Determine the indices determined by the stream filter.  These indices will be members of
 `idx` for which the `StreamFilter` source satisfies the functions in was created with.
 """
-function index{T<:Integer}(f::StreamFilter, idx::AbstractVector{T};
-                           batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
-    cols = colidx(f)
-    ctypes = coltypes(f.schema, cols)
-    o = Vector{T}()  # it's impossible to know the length of this a priori
-    for batch_idx ∈ batchiter(idx, batch_size)
-        append!(o, _index_batch(f, cols, ctypes, batch_idx))
+function filterall{T<:Integer}(f::StreamFilter, idx::AbstractVector{T};
+                               batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
+    iter = batchiter(f, idx, batch_size=batch_size)
+    o = Vector{T}()  # no way of predicting the size of this
+    for idxo ∈ iter
+        append!(o, idxo)
     end
     o
 end
-export index
+export filterall
 #=========================================================================================
-    <interface>
+    </basic functions>
 =========================================================================================#
 
+
+# TODO need interface functions, including those which act internally as StreamFilter constr
 

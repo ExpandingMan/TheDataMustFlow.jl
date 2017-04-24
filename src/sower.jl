@@ -39,6 +39,9 @@ end
 export Sower
 
 
+#=========================================================================================
+    <migrating>
+=========================================================================================#
 function _migrate_column!{From,To}(s::Sower, src, fromcol::Integer, tocol::Integer,
                                    ::Type{From}, ::Type{To},
                                    batch_idx::AbstractVector{<:Integer},
@@ -56,68 +59,115 @@ function _migrate_batch!(s::Sower, src, colmap::Dict, fromtypes::Dict, totypes::
 end
 
 """
-    migrate!(s::Sower, src[, cols::AbstractVector{Symbol}], idx::AbstractVector{<:Integer};
-             namemap::Dict=Dict(), batch_size::Integer=DEFAULT, index_map::Function=identity)
+    migrator!(s::Sower, src[, cols::AbstractVector{Symbol}], idx::AbstractVector{<:Integer};
+              name_map::Dict=Dict(), batch_size::Integer=DEFAULT,
+              index_map::Function=identity)
 
-Transfers columns `cols` from the source `src` (which must implement the `DataStreams` source
-interface) to the `Sower`s sink.  This will occur only for the index `idx` of the source.
-If the columns in the sink have different names from those in the source, entries should
-appear in `namemap` in the form `source_name=>sink_name`.  The transfer will be done in
+Returns a function `m!(idx)` that transfers columns `cols` from the source `src`
+(which must implement the `DataStreams` source interface) to the `Sower`s sink.
+This will occur only for the index `idx` of the source.  If the columns in the
+sink have different names from those in the source, entries should appear in
+`name_map` in the form `source_name=>sink_name`.  The transfer will be done in
 batches of size `batch_size`.  The index `i` to which data is written will be
-`index_map(α)` where `α` is the source index.  If the `cols` argument is omitted, all columns
-from the source will be used.
+`index_map(α)` where `α` is the source index.  If the `cols` argument is
+omitted, all columns from the source will be used.
 """
-function migrate!(s::Sower, src, cols::AbstractVector{Symbol},
-                  idx::AbstractVector{<:Integer}; namemap::Dict=Dict(),
-                  batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+function migrator(s::Sower, src, cols::AbstractVector{Symbol};
+                  name_map::Dict=Dict(),
                   index_map::Function=identity)
     sch = Data.schema(src)
     mcols = colidx(sch, cols)
     colmap = Dict()
     for (mcol, mcolname) ∈ zip(mcols, cols)
-        colmap[mcol] = colidx(sch, get(namemap, mcolname, mcolname))
+        colmap[mcol] = colidx(sch, get(name_map, mcolname, mcolname))
     end
     fromtypes = Data.types(sch)
     fromtypes = Dict(i=>vectortype(fromtypes[i]) for (i,v) ∈ colmap)
     totypes = Data.types(s.schema)
     totypes = Dict(i=>vectortype(totypes[i]) for (k,i) ∈ colmap)
-    for batch_idx ∈ batchiter(idx, batch_size)
-        _migrate_batch!(s, src, colmap, fromtypes, totypes, batch_idx, index_map)
-    end
+    idx::AbstractVector{<:Integer} -> _migrate_batch!(s, src, colmap, fromtypes, totypes,
+                                                      idx, index_map)
 end
-function migrate!(s::Sower, src, idx::AbstractVector{<:Integer}; namemap::Dict=Dict(),
+function migrator(s::Sower, src; name_map::Dict=Dict(),
                   batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
                   index_map::Function=identity)
-    migrate!(s, src, Symbol.(Data.header(Data.schema(src))), idx, namemap=namemap,
+    migrator(s, src, Symbol.(Data.header(Data.schema(src))), name_map=name_map,
+             index_map=index_map)
+end
+export migrator
+
+# this is the iterator for migrating
+function batchiter(s::Sower, src, cols::AbstractVector{Symbol},
+                   idx::AbstractVector{<:Integer};
+                   name_map::Dict=Dict(), batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                   index_map::Function=identity)
+    m! = migrator(s, src, cols, name_map=name_map, index_map=index_map)
+    batchiter(m!, idx, batch_size)
+end
+function batchiter(s::Sower, src, idx::AbstractVector{<:Integer};
+                   name_map::Dict=Dict(), batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                   index_map::Function=identity)
+    batchiter(s, src, Symbol.(Data.header(data.schema(src))), name_map=name_map,
+              index_map=index_map, batch_size=batch_size)
+end
+
+
+# this does the full migration
+function migrate!(s::Sower, src, cols::AbstractVector{Symbol},
+                  idx::AbstractVector{<:Integer};
+                  name_map::Dict=Dict(), batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                  index_map::Function=identity)
+    iter = batchiter(s, src, cols, idx, name_map=name_map, batch_size=batch_size,
+                     index_map=index_map)
+    foreach(x -> nothing, iter)
+end
+function migrate!(s::Sower, src, idx::AbstractVector{<:Integer};
+                  name_map::Dict=Dict(), batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                  index_map::Function=identity)
+    migrate!(s, src, Symbol.(Data.header(Data.schema(src))), idx, name_map=name_map,
              batch_size=batch_size, index_map=index_map)
 end
 export migrate!
+#=========================================================================================
+    </migrating>
+=========================================================================================#
 
 
+
+#=========================================================================================
+    <sowing>
+=========================================================================================#
 # this is largely a function boundary for efficiency
 function _sow_column!{T,To}(s::Sower, ycol::Vector{T}, ::Type{To},
-                              idx::AbstractVector{<:Integer}, tocol::Integer)
+                            idx::AbstractVector{<:Integer}, tocol::Integer)
     streamto!(s.snk, Data.Column, convert(To, ycol), idx, tocol, s.schema)
 end
 # it is expected that this idx and y are not for the complete dataset
 # this is expected to be in an external loop for lots of different y batches
 """
-    sow!(s::Sower, idx::AbstractVecto{<:Integer}, y::Matrix{T})
+    sower(s::Sower)
 
-Place the contents of `y` into the `Sower`s sink, in the indices given by `idx`.  Recall
-that the columns the `y` are placed into are designated when the `Sower` is constructed.
-Note that this function can easily be used in a `harvest` loop.
+Returns a function `s!(idx, y)` which places the contents of `y` into the indices `idx` of
+the `Sower`'s sink.
 """
-function sow!{T}(s::Sower, idx::AbstractVector{<:Integer}, y::Matrix{T})
+function sower(s::Sower)
     tocols = colidx(s.schema, s.newycols)
     totypes = Data.types(s.schema)
     totypes = Dict(i=>vectortype(totypes[i]) for i ∈ tocols)
-    for col ∈ 1:size(y,2)
-        tocol = tocols[col]
-        _sow_column!(s, y[:,col], totypes[tocol], idx, tocol)
+    function (idx::AbstractVector{<:Integer}, y::Matrix)
+        for col ∈ 1:size(y,2)
+            tocol = tocols[col]
+            _sow_column!(s, y[:,col], totypes[tocol], idx, tocol)
+        end
     end
 end
-export sow!
+export sower
+
+# note that this doesn't get an iterator because it takes arguments
+
+#=========================================================================================
+    </sowing>
+=========================================================================================#
 
 
 

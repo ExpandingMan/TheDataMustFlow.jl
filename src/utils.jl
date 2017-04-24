@@ -51,9 +51,25 @@ Base.done(iter::BatchIterator, state::Integer) = state > iter.N
 Base.length(iter::BatchIterator) = iter.N
 
 
-function batchiter(idx::AbstractVector{<:Integer}, batch_size::Integer)
+"""
+# `batchiter`
+    batchiter([f::Function], idx::AbstractVector{<:Integer}, batch_size::Integer)
+
+Returns an iterator over batches.  If a function is provided, this will apply the function
+to the batches created from the indices `idx` with batch size `batch_size`.
+"""
+function batchiter(idx::AbstractVector{<:Integer}, batch_size::Integer=DEFAULT_BATCH_SIZE)
     BatchIterator(idx, batch_size)
 end
+# this is the generic batch iteration function
+function batchiter(f::Function, idx::AbstractVector{<:Integer}, batch_size::Integer)
+    (f(batch_idx) for batch_idx ∈ batchiter(idx, batch_size))
+end
+function batchiter(f::Function, idx::AbstractVector{<:Integer};
+                   batch_size::Integer=DEFAULT_BATCH_SIZE)
+    batchiter(f, idx, batch_size)
+end
+export batchiter
 #=========================================================================================
     </BatchIterator>
 =========================================================================================#

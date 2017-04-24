@@ -18,22 +18,31 @@ nrows = size(src, 1)
 # sink = data
 
 
-filter = StreamFilter(src, [:Header1, :Header2],
-                      Function[i -> (i % 2 == 0), i -> (i % 3 == 0)])
-idx = index(filter, 1:nrows)
+# create StreamFilter
+sfilter = StreamFilter(src, [:Header1, :Header2],
+                       Function[i -> (i % 2 == 0), i -> (i % 3 == 0)])
+# collect all valid indices
+idx = filterall(sfilter, 1:nrows)
+
+# construct Harvester
 h = Harvester(src, [:A, :B], Symbol[])
+harvest = harvester(h, Float64)
 
 # create a sink to put data back into
 dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]
 header = [Symbol.(Data.header(src_sch)); :γ; :δ]
 sink = DataTable(dtypes, header, nrows)
 
+# create Sower
 s = Sower(sink, [:γ, :δ])
-
+sow! = sower(s)
+# migrate everything
 migrate!(s, src, 1:nrows)
 
-for (X,_,sidx) ∈ harvest(h, idx, Float64)
+# main loop
+@time for sidx ∈ batchiter(idx, batch_size)
+    X, y = harvest(sidx)
     y = -X
-    sow!(s, sidx, y)
+    sow!(sidx, y)
 end
 

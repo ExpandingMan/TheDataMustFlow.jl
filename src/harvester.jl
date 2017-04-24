@@ -60,21 +60,17 @@ function _harvest_batch{T}(h::Harvester, ::Type{T},
         Xcol ≠ 0 && (X[:, Xcol] .= v)
         ycol ≠ 0 && (y[:, ycol] .= v)
     end
-    X, y, bidx
+    X, y
 end
 
 """
-    harvest(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{dtype},
-            batch_size::Integer=DEFAULT)
+    harvester(h::Harvester, ::Type{T})
 
-Return an iterator that iterates over `X,y,batch_idx` where `X,y` are raw matrices with
-element type `dtype` intended for machine learning consumption and `batch_idx` is a vector
-of the indices associated with the rows of `X` and `y`.  The complete set of iterations
-will cover all indices in `idx`.  This will be done in batches of size `batch_size`
-(i.e. `X` and `y` will have `batch_size` rows).
+Return a function `h(idx)` which takes an `AbstractVector{<:Integer}` and returns the
+`X,y` pairs as determined by the `Harvester`.  See the `Harvester` constructor for more
+details.
 """
-function harvest{T}(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{T};
-                    batch_size::Integer=DEFAULT_HARVEST_BATCH_SIZE)
+function harvester{T}(h::Harvester, ::Type{T})
     Xcols = Xcolidx(h);  Xwidth = length(Xcols)
     ycols = ycolidx(h);  ywidth = length(ycols)
     allcols = collect(Set(Xcols) ∪ Set(ycols))  # no reason to sort?
@@ -82,11 +78,18 @@ function harvest{T}(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{T};
     alltypes = DataType[_types[c] for c ∈ allcols]
     Xcolmap = Dict(c=>findfirst(Xcols, c) for c ∈ allcols)
     ycolmap = Dict(c=>findfirst(ycols, c) for c ∈ allcols)
-    hb(batch_idx) = _harvest_batch(h, T, Xcolmap, Xwidth, ycolmap, ywidth,
-                                   allcols, alltypes, batch_idx)
-    (hb(batch_idx) for batch_idx ∈ batchiter(idx, batch_size))
+    idx::AbstractVector{<:Integer} -> _harvest_batch(h, T, Xcolmap, Xwidth, ycolmap, ywidth,
+                                                     allcols, alltypes, idx)
 end
-export harvest
+export harvester
+
+
+function batchiter{T}(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{T};
+                      batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
+    hvstr = harvester(h, T)
+    batchiter(hvstr, idx, batch_size)
+end
+
 
 
 
