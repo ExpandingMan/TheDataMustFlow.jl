@@ -42,43 +42,43 @@ migrate!(s, src, 1:nrows)
 sow! = sower(s)
 
 
-
 const idx_chnl = Channel{Vector}(256)
 const y_chnl = Channel{Tuple}(128)
 
+# ideally this would be done in parallel also
 # put stuff onto the index channel
-for batch ∈ batchiter(1:100, filt_batch_size)
-    @schedule begin
-        println("filling idx channel...")
+println("scheduling index filtering...")
+for batch ∈ batchiter(1:nrows, filt_batch_size)
+    @async begin
         put!(idx_chnl, filt(batch))
     end
 end
 
 function transfer_harvest()
     while true
-        println("filling y_channel")
         idx = take!(idx_chnl)
         X, _ = harvest(idx)
         y = -X
         put!(y_chnl, (idx, y))
-        println("done filling y channel")
     end
 end
 
+println("scheduling harvesting...")
 for i ∈ 1:16
-    @schedule transfer_harvest()
+    @async transfer_harvest()
 end
 
+# this is harder to do everywhere because of the sink
 function do_sow()
     while true
-        println("sowing...")
         idx, y = take!(y_chnl)
         sow!(idx, y)
     end
 end
 
+println("scheduling sowing...")
 for i ∈ 1:16
-    @schedule do_sow()
+    @async do_sow()
 end
 
 

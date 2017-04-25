@@ -81,13 +81,19 @@ function harvester{T}(h::Harvester, ::Type{T})
     idx::AbstractVector{<:Integer} -> _harvest_batch(h, T, Xcolmap, Xwidth, ycolmap, ywidth,
                                                      allcols, alltypes, idx)
 end
+function harvester{T}(src, Xcols::AbstractVector{Symbol}, ycols::AbstractVector{Symbol},
+                      ::Type{T})
+    harvester(Harvester(src, Xcols, ycols), T)
+end
+function harvester{T}(src, Xcols::AbstractVector{Symbol}, ::Type{T})
+    harvester(Harvester(src, Xcols), T)
+end
 export harvester
 
 
 function batchiter{T}(h::Harvester, idx::AbstractVector{<:Integer}, ::Type{T};
                       batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
-    hvstr = harvester(h, T)
-    batchiter(hvstr, idx, batch_size)
+    batchiter(harvester(h, T), idx, batch_size)
 end
 
 

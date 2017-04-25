@@ -19,20 +19,22 @@ nrows = size(src, 1)
 
 
 # create StreamFilter
-sfilter = StreamFilter(src, [:Header1, :Header2],
-                       Function[i -> (i % 2 == 0), i -> (i % 3 == 0)])
+# sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
+#                        Header2=(i -> i % 3 == 0))
 # collect all valid indices
-idx = filterall(sfilter, 1:nrows)
+idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
 
 # construct Harvester
-h = Harvester(src, [:A, :B], Symbol[])
-harvest = harvester(h, Float64)
+# h = Harvester(src, [:A, :B], Symbol[])
+# harvest = harvester(h, Float64)
+harvest = harvester(src, [:A, :B], Float64)
 
 # create a sink to put data back into
 dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]
 header = [Symbol.(Data.header(src_sch)); :γ; :δ]
 sink = DataTable(dtypes, header, nrows)
 
+# TODO simplify sower interface
 # create Sower
 s = Sower(sink, [:γ, :δ])
 sow! = sower(s)

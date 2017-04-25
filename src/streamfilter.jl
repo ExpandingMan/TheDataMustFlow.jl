@@ -44,6 +44,24 @@ export StreamFilter
 
 
 #=========================================================================================
+    <advanced constructors>
+=========================================================================================#
+_streamfilter_handle_kwarg(f::Function) = f
+_streamfilter_handle_kwarg(L::AbstractVector) = (x -> (x ∈ L))
+# TODO any other cases to add?
+
+function StreamFilter(src; kwargs...)
+    cols = convert(Vector{Symbol}, getindex.(kwargs,1))
+    funs = _streamfilter_handle_kwarg.(getindex.(kwargs,2))
+    StreamFilter(src, cols, funs)
+end
+#=========================================================================================
+    </advanced constructors>
+=========================================================================================#
+
+
+
+#=========================================================================================
     <basic functions>
 =========================================================================================#
 colidx(f::StreamFilter) = colidx(f.schema, f.filtercols)
@@ -87,6 +105,8 @@ function streamfilter(f::StreamFilter)
     ctypes = coltypes(f.schema, cols)
     idx::AbstractVector{<:Integer} -> _index_batch(f, cols, ctypes, idx)
 end
+streamfilter(src, cols, funcs) = streamfilter(StreamFilter(src, cols, funcs))
+streamfilter(src; kwargs...) = streamfilter(StreamFilter(src; kwargs...))
 export streamfilter
 
 
@@ -104,13 +124,14 @@ function batchiter(f::StreamFilter, idx::AbstractVector{<:Integer};
 end
 
 
+# this accepts the stream filter function or the filter itself. Use with caution.
 """
     filterall(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
 
 Determine the indices determined by the stream filter.  These indices will be members of
 `idx` for which the `StreamFilter` source satisfies the functions in was created with.
 """
-function filterall{T<:Integer}(f::StreamFilter, idx::AbstractVector{T};
+function filterall{T<:Integer}(f::Union{Function,StreamFilter}, idx::AbstractVector{T};
                                batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
     iter = batchiter(f, idx, batch_size=batch_size)
     o = Vector{T}()  # no way of predicting the size of this
@@ -118,6 +139,17 @@ function filterall{T<:Integer}(f::StreamFilter, idx::AbstractVector{T};
         append!(o, idxo)
     end
     o
+end
+function filterall{T<:Integer}(src, cols::AbstractVector{Symbol},
+                               funcs::AbstractVector{Function},
+                               idx::AbstractVector{T};
+                               batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
+    filterall(StreamFilter(src, cols, funs), idx, batch_size=batch_size)
+end
+function filterall{T<:Integer}(src, idx::AbstractVector{T};
+                               batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE,
+                               kwargs...)
+    filterall(StreamFilter(src; kwargs...), idx, batch_size=batch_size)
 end
 export filterall
 #=========================================================================================
