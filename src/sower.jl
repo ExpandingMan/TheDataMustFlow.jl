@@ -89,12 +89,24 @@ function migrator(s::Sower, src, cols::AbstractVector{Symbol};
                                                       idx, index_map)
 end
 function migrator(s::Sower, src; name_map::Dict=Dict(),
-                  batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
                   index_map::Function=identity)
     migrator(s, src, Symbol.(Data.header(Data.schema(src))), name_map=name_map,
              index_map=index_map)
 end
+# these have internal Sower constructors
+function migrator(source_sink::Pair, cols::AbstractVector{Symbol};
+                  name_map::Dict=Dict(),
+                  index_map::Function=identity)
+    s = Sower(source_sink[2], Symbol[])
+    migrator(s, source_sink[1], cols, name_map=name_map, index_map=index_map)
+end
+function migrator(source_sink::Pair;
+                  name_map::Dict=Dict(), index_map::Function=identity)
+    s = Sower(source_sink[2], Symbol[])
+    migrator(s, source_sink[1], name_map=name_map, index_map=index_map)
+end
 export migrator
+
 
 # this is the iterator for migrating
 function batchiter(s::Sower, src, cols::AbstractVector{Symbol},
@@ -126,6 +138,22 @@ function migrate!(s::Sower, src, idx::AbstractVector{<:Integer};
                   index_map::Function=identity)
     migrate!(s, src, Symbol.(Data.header(Data.schema(src))), idx, name_map=name_map,
              batch_size=batch_size, index_map=index_map)
+end
+# these have internal Sower constructors
+function migrate!(source_sink::Pair, cols::AbstractVector{Symbol},
+                  idx::AbstractVector{<:Integer};
+                  name_map::Dict=Dict(), batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                  index_map::Function=identity)
+    s = Sower(source_sink[2], Symbol[])
+    migrate!(s, source_sink[1], cols, idx, name_map=name_map, batch_size=batch_size,
+             index_map=index_map)
+end
+function migrate!(source_sink::Pair, idx::AbstractVector{<:Integer};
+                  name_map::Dict=Dict(), batch_size::Integer=DEFAULT_SOW_BATCH_SIZE,
+                  index_map::Function=identity)
+    s = Sower(source_sink[2], Symbol[])
+    migrate!(s, source_sink[1], idx, name_map=name_map, batch_size=batch_size,
+             index_map=index_map)
 end
 export migrate!
 #=========================================================================================
@@ -161,6 +189,10 @@ function sower(s::Sower)
         end
     end
 end
+function sower(src, sch::Data.Schema, newycols::AbstractVector{Symbol})
+    sower(Sower(src, sch, newycols))
+end
+sower(src, newycols::AbstractVector{Symbol}) = sower(Sower(src, newycols))
 export sower
 
 # note that this doesn't get an iterator because it takes arguments

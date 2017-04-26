@@ -4,7 +4,7 @@ using Feather
 using TheDataMustFlow
 using DataUtils
 
-const filename = "sample.feather"
+const filename = "sample_nulls.feather"
 const batch_size = 1024
 
 src = Feather.Source(filename)
@@ -22,7 +22,8 @@ nrows = size(src, 1)
 # sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
 #                        Header2=(i -> i % 3 == 0))
 # collect all valid indices
-idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+# idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+idx = filterall(src, 1:nrows, A=isnull, C=isnull)
 
 # construct Harvester
 # h = Harvester(src, [:A, :B], Symbol[])
@@ -34,17 +35,20 @@ dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]
 header = [Symbol.(Data.header(src_sch)); :γ; :δ]
 sink = DataTable(dtypes, header, nrows)
 
+# migrate everything
+migrate!(src=>sink, 1:nrows)
+
 # TODO simplify sower interface
 # create Sower
-s = Sower(sink, [:γ, :δ])
-sow! = sower(s)
-# migrate everything
-migrate!(s, src, 1:nrows)
-
+sow! = sower(sink, [:γ, :δ])
 # main loop
 @time for sidx ∈ batchiter(idx, batch_size)
     X, y = harvest(sidx)
     y = -X
     sow!(sidx, y)
 end
+
+
+
+
 

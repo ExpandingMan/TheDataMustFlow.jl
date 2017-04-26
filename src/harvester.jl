@@ -23,8 +23,11 @@ struct Harvester <: AbstractHarvester
     src::Any
     schema::Data.Schema
 
+    # TODO consider making this handle arbitrarily many matrices
     Xcols::Vector{Symbol}
     ycols::Vector{Symbol}
+
+    transforms::Dict
 
     function Harvester(src, sch::Data.Schema, Xcols::AbstractVector{Symbol},
                        ycols::AbstractVector{Symbol})
