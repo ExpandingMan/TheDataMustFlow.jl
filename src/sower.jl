@@ -18,7 +18,7 @@ in the form of a raw matrix (presumably some sort of machine learning output).  
 names passed should be the names into which the columns of the matrices should be
 transferred.
 """
-struct Sower <: AbstractSower
+struct Sower <: AbstractMorphism{PushForward}
     snk::Any
     schema::Data.Schema
 

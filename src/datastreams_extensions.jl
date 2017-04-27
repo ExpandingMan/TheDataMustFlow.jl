@@ -3,7 +3,7 @@ vectortype{T}(::Type{T}) = Vector{T}
 vectortype{T}(::Type{Nullable{T}}) = NullableVector{T}
 
 coltype(sch::Data.Schema, i::Integer) = vectortype(Data.types(sch)[i])
-function coltypes(sch::Data.Schema, cols::AbstractVector{<:Integer})
+function coltypes(sch::Data.Schema, cols)
     DataType[coltype(sch, c) for c ∈ cols]
 end
 coltypes(sch::Data.Schema) = coltypes(sch, 1:length(Data.header(sch)))

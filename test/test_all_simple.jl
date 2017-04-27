@@ -3,6 +3,7 @@ using DataStreams
 using Feather
 using TheDataMustFlow
 using DataUtils
+using BenchmarkTools
 
 const filename = "sample.feather"
 const batch_size = 1024

@@ -1,6 +1,4 @@
 
-abstract type AbstractStreamFilter end
-
-abstract type AbstractHarvester end
-abstract type AbstractSower end
+abstract type MapDirection end  # these definitions are found in morphism.jl
+abstract type AbstractMorphism{T<:MapDirection} end
 

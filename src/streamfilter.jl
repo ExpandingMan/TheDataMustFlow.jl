@@ -17,27 +17,22 @@ The functions in `filterfuncs` should be functions which apply to elements of th
 column given in `filtercols` and return booleans.  Indices for rows for which all of these
 booleans are true are returned.
 """
-struct StreamFilter <: AbstractStreamFilter
-    src::Any
+struct StreamFilter <: AbstractMorphism{PullBack}
+    s::Any
     schema::Data.Schema
 
-    filtercols::Vector{Symbol}
+    cols::Vector{Tuple}
+    funcs::Vector{Function}
 
-    filterfuncs::Vector{Function}
-
-
-    function StreamFilter(src, sch::Data.Schema, filtercols::AbstractVector{Symbol},
-                          filterfuncs::AbstractVector{Function})
-        if length(filtercols) ≠ length(filterfuncs)
-            throw(ArgumentError("Must supply same number of filter functions as columns."))
-        end
-        new(src, sch, convert(Vector{Symbol}, filtercols),
-            convert(Vector{Function}, filterfuncs))
+    function StreamFilter(s, sch::Data.Schema,
+                          cols::AbstractVector{<:Integer},
+                          func::Function)
+        new(s, sch, tuple(cols...), [func])
     end
-
-    function StreamFilter(src, filtercols::AbstractVector{Symbol},
-                          filterfuncs::AbstractVector{Function})
-        StreamFilter(src, Data.schema(src), filtercols, filterfuncs)
+    function StreamFilter(s,
+                          cols::AbstractVector{<:Integer},
+                          func::Function)
+        StreamFilter(s, Data.schema(s), cols, func)
     end
 end
 export StreamFilter

@@ -19,7 +19,7 @@ One should pass a source object from which to gather data which will be placed i
 `X` and `y`, the columns of which correspond to the columns of `src` specified by `Xcols`
 and `ycols` respectively.
 """
-struct Harvester <: AbstractHarvester
+struct Harvester <: AbstractMorphism{PullBack}
     src::Any
     schema::Data.Schema
 

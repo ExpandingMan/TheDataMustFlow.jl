@@ -30,6 +30,7 @@ const DEFAULT_SOW_BATCH_SIZE = 16384
 include("abstracts.jl")
 include("utils.jl")
 include("datastreams_extensions.jl")
+include("morphism.jl")
 include("streamfilter.jl")
 include("harvester.jl")
 include("sower.jl")
