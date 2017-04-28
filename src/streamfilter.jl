@@ -24,18 +24,57 @@ struct StreamFilter <: AbstractMorphism{PullBack}
     cols::Vector{Tuple}
     funcs::Vector{Function}
 
-    function StreamFilter(s, sch::Data.Schema,
-                          cols::AbstractVector{<:Integer},
+    function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{<:Integer},
                           func::Function)
-        new(s, sch, tuple(cols...), [func])
+        new(s, sch, Tuple[tuple(cols...)], Function[func])
     end
-    function StreamFilter(s,
-                          cols::AbstractVector{<:Integer},
-                          func::Function)
+    function StreamFilter(s, cols::AbstractVector{<:Integer}, func::Function)
         StreamFilter(s, Data.schema(s), cols, func)
     end
+    function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{Symbol},
+                          func::Function)
+        StreamFilter(s, sch, colidx(sch, cols), func)
+    end
+    function StreamFilter(s, cols::AbstractVector{Symbol}, func::Function)
+        StreamFilter(s, Data.schema(s), cols, func)
+    end
+
+    # TODO more advanced interface for multiple columns to one function
+    # would probably require a macro
 end
 export StreamFilter
+
+
+#=========================================================================================
+    <intermediate constructors>
+=========================================================================================#
+function _combine_streamfilter_funcs(funcs::AbstractVector{<:Function})
+    ℓ = length(funcs)
+    function (args::AbstractVector...)
+        .&((funcs[i].(args[i]) for i ∈ 1:ℓ)...)
+    end
+end
+
+# this  constructor takes user functions and combines them
+function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{<:Integer},
+                      filterfuncs::AbstractVector{<:Function})
+    StreamFilter(s, sch, cols, _combine_streamfilter_funcs(filterfuncs))
+end
+function StreamFilter(s, cols::AbstractVector{<:Integer},
+                      filterfuncs::AbstractVector{<:Function})
+    StreamFilter(s, Data.schema(s), cols, filterfuncs)
+end
+function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{Symbol},
+                      filterfuncs::AbstractVector{<:Function})
+    StreamFilter(s, sch, colidx(sch, cols), filterfuncs)
+end
+function StreamFilter(s, cols::AbstractVector{Symbol},
+                      filterfuncs::AbstractVector{<:Function})
+    StreamFilter(s, Data.schema(s), cols, filterfuncs)
+end
+#=========================================================================================
+    </intermediate constructors>
+=========================================================================================#
 
 
 #=========================================================================================
@@ -59,35 +98,7 @@ end
 #=========================================================================================
     <basic functions>
 =========================================================================================#
-colidx(f::StreamFilter) = colidx(f.schema, f.filtercols)
-
-"""
-    rowtype(f::StreamFilter)
-
-Gets a `Tuple` type of the row in the source of `f`.
-"""
-function rowtype(f::StreamFilter)
-    header = Data.header(f.schema)
-    dtypes = Data.types(f.schema)
-    filtercols = String[string(c) for c ∈ f.filtercols]
-    idx = findin(header, filtercols)
-    Tuple{dtypes[idx]...}
-end
-
-
-# helper function for index
-function _index_batch(f::StreamFilter, cols::AbstractVector{<:Integer},
-                      ctypes::AbstractVector{DataType},
-                      batch_idx::AbstractVector{<:Integer})
-    allcols = Vector{AbstractVector{Bool}}(length(f.filtercols))
-    for i ∈ 1:length(f.filtercols)
-        allcols[i] = sift(f.src, f.filterfuncs[i], ctypes[i], cols[i],
-                          batch_idx)
-    end
-    mask = .&(allcols...)
-    find(mask) + batch_idx[1] - 1
-end
-
+streamfilter(f::StreamFilter, ::Type{Bool}) = morphism(f)
 
 """
     streamfilter(f::StreamFilter)
@@ -96,12 +107,17 @@ Return a function `I(idx)` which searches through the indices `idx` of the `Stre
 source for rows satisfying the specified conditions.
 """
 function streamfilter(f::StreamFilter)
-    cols = colidx(f)
-    ctypes = coltypes(f.schema, cols)
-    idx::AbstractVector{<:Integer} -> _index_batch(f, cols, ctypes, idx)
+    func = streamfilter(f, Bool)
+    idx -> find(func(idx)) + idx[1] - 1
 end
 streamfilter(src, cols, funcs) = streamfilter(StreamFilter(src, cols, funcs))
+function streamfilter(src, cols, funcs, ::Type{Bool})
+    streamfilter(StreamFilter(src, cols, funcs, Bool))
+end
 streamfilter(src; kwargs...) = streamfilter(StreamFilter(src; kwargs...))
+function streamfilter(src, ::Type{Bool}; kwargs...)
+    streamfilter(StreamFilter(src; kwargs...), Bool)
+end
 export streamfilter
 
 

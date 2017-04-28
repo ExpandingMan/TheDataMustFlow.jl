@@ -20,11 +20,12 @@ nrows = size(src, 1)
 
 
 # create StreamFilter
-# sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
-#                        Header2=(i -> i % 3 == 0))
+sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
+                       Header2=(i -> i % 3 == 0))
 # collect all valid indices
-idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+# idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
 
+#=
 # construct Harvester
 # h = Harvester(src, [:A, :B], Symbol[])
 # harvest = harvester(h, Float64)
@@ -47,4 +48,5 @@ sow! = sower(sink, [:γ, :δ])
     y = -X
     sow!(sidx, y)
 end
+=#
 

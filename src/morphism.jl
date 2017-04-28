@@ -24,7 +24,7 @@ struct Morphism{T<:MapDirection} <: AbstractMorphism{T}
         new(s, Data.schema(s), cols, funcs)
     end
 
-    function Morphism{T}(s, sch::Data.schema, cols::AbstractVector{Symbol},
+    function Morphism{T}(s, sch::Data.Schema, cols::AbstractVector{Symbol},
                          funcs::AbstractVector{<:Function}) where T
         cols = [tuple((sch[string(c)] for c ∈ co)...) for co ∈ cols]
         Morphism{T}(s, sch, cols, funcs)
