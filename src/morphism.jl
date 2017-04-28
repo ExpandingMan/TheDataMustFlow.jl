@@ -39,6 +39,7 @@ end
 export Morphism
 
 
+
 # returns function
 function morphism{R}(m::AbstractMorphism, ::Type{R}=Tuple)
     if length(m.funcs) == 1
@@ -49,6 +50,10 @@ end
 export morphism
 
 
+
+
+
+# TODO consider adding parameter arguments to functions
 
 #=========================================================================================
     <PullBack>
@@ -108,7 +113,28 @@ end
 #=========================================================================================
     <PushForward>
 =========================================================================================#
+function _pushforward_column{T,To}(m::AbstractMorphism{PushForward},
+                                   col::Vector{T}, ::Type{To},
+                                   idx::AbstractVector{<:Integer},
+                                   tocol::Integer)
+    streamto!(m.s, Data.Column, convert(To, col), idx, tocol, m.schema)
+end
 
+
+function morphism(m::AbstractMorphism{PushForward})
+    ℓ = length(m.funcs)
+    totypes = coltypes(m.schema, 1:size(m.schema,2))
+
+    # length of args here should be equal to number of functions
+    function (idx::AbstractArray{<:Integer}, args::AbstractArray...)
+        for i ∈ 1:ℓ
+            X = m.funcs[i](args[i])
+            for (j,c) ∈ enumerate(m.cols[i])
+                _pushforward_column(m, X[:, j], totypes[c], idx, c)
+            end
+        end
+    end
+end
 #=========================================================================================
     </PushForward>
 =========================================================================================#

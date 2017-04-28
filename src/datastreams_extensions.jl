@@ -9,15 +9,15 @@ end
 coltypes(sch::Data.Schema) = coltypes(sch, 1:length(Data.header(sch)))
 
 # this will hopefully get implemented in DataStreams some day
-function streamfrom{T}(src, ::Type{Data.Column}, ::Type{Vector{T}},
+function streamfrom{T}(s, ::Type{Data.Column}, ::Type{Vector{T}},
                        rows::AbstractVector{<:Integer}, col::Integer)
-    [Data.streamfrom(src, Data.Field, T, i, col) for i ∈ rows]::Vector{T}
+    [Data.streamfrom(s, Data.Field, T, i, col) for i ∈ rows]::Vector{T}
 end
-function streamfrom{T}(src, ::Type{Data.Column}, ::Type{NullableVector{T}},
+function streamfrom{T}(s, ::Type{Data.Column}, ::Type{NullableVector{T}},
                        rows::AbstractVector{<:Integer}, col::Integer)
     # TODO wow, this is bad
     # can't fix without updating DataStreams standard
-    o = [Data.streamfrom(src, Data.Field, Nullable{T}, i, col) for i ∈ rows]
+    o = [Data.streamfrom(s, Data.Field, Nullable{T}, i, col) for i ∈ rows]
     convert(NullableArray, o)::NullableVector{T}
 end
 
@@ -33,12 +33,12 @@ end
 
 
 # TODO make types more configurable
-function coerce{T,U}(src, ::Type{T}, ::Type{U}, idx::AbstractVector{<:Integer}, c::Integer)
-    convert(Vector{T}, streamfrom(src, Data.Column, Vector{U}, idx, c))
+function coerce{T,U}(s, ::Type{T}, ::Type{U}, idx::AbstractVector{<:Integer}, c::Integer)
+    convert(Vector{T}, streamfrom(s, Data.Column, Vector{U}, idx, c))
 end
-function coerce{T,U}(src, ::Type{T}, ::Type{Nullable{U}}, idx::AbstractVector{<:Integer},
+function coerce{T,U}(s, ::Type{T}, ::Type{Nullable{U}}, idx::AbstractVector{<:Integer},
                      c::Integer)
-    convert(Vector{T}, streamfrom(src, Data.Column, NullableVector{U}, idx, c))
+    convert(Vector{T}, streamfrom(s, Data.Column, NullableVector{U}, idx, c))
 end
 
 
@@ -52,8 +52,8 @@ function _apply_nolift(f::Function, v::NullableVector)
     o
 end
 
-function sift{T}(src, f::Function, ::Type{T}, i::Integer, ab::AbstractVector{<:Integer})
-    _apply_nolift(f, streamfrom(src, Data.Column, T, ab, i))::AbstractVector{Bool}
+function sift{T}(s, f::Function, ::Type{T}, i::Integer, ab::AbstractVector{<:Integer})
+    _apply_nolift(f, streamfrom(s, Data.Column, T, ab, i))::AbstractVector{Bool}
 end
 
 

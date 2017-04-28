@@ -23,14 +23,13 @@ nrows = size(src, 1)
 sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
                        Header2=(i -> i % 3 == 0))
 # collect all valid indices
-# idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+
+# construct Harvester
+harvest = harvester(src, Float64, [:A, :C], [:B, :D])
+
 
 #=
-# construct Harvester
-# h = Harvester(src, [:A, :B], Symbol[])
-# harvest = harvester(h, Float64)
-harvest = harvester(src, [:A, :B], Float64)
-
 # create a sink to put data back into
 dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]
 header = [Symbol.(Data.header(src_sch)); :γ; :δ]

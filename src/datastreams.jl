@@ -6,54 +6,60 @@
 =========================================================================================#
 
 
+Data.schema(m::AbstractMorphism) = Data.schema(m.s)
+Data.schema{T<:Data.StreamType}(m::AbstractMorphism, ::Type{T}) = Data.schema(m.s, T)
+
+
 #=========================================================================================
-    <harvester>
+    <PullBack>
 =========================================================================================#
-Data.isdone(h::Harvester, row, col) = Data.isdone(h.src, row, col)
-Base.size(h::Harvester) = Base.size(h.src)
-Data.schema(h::Harvester) = Data.schema(h.src)
-Data.schema{T<:Data.StreamType}(h::Harvester, ::Type{T}) = Data.schema(h.src, T)
-function Data.streamtype{T<:Data.StreamType}(h::Harvester, ::Type{T})
-    Data.streamtype(typeof(h.src), T)
+Data.isdone(m::AbstractMorphism{PullBack}, row, col) = Data.isdone(m.s, row, col)
+Base.size(m::AbstractMorphism{PullBack}) = Base.size(m.s)
+function Data.streamtype{T<:Data.StreamType}(m::AbstractMorphism{PullBack}, ::Type{T})
+    Data.streamtype(typeof(m.s), T)
 end
 
-function Data.streamfrom{T}(h::Harvester, ::Type{Data.Field}, ::Type{T}, row, col)
-    Data.streamfrom(h.src, Data.Field, T, row, col)
+function Data.streamfrom{T}(m::AbstractMorphism{PullBack}, ::Type{Data.Field}, ::Type{T}, row, col)
+    Data.streamfrom(m.s, Data.Field, T, row, col)
 end
-function Data.streamfrom{T}(h::Harvester, ::Type{Data.Column}, ::Type{T}, col)
-    Data.streamfrom(h.src, Data.Column, T, col)
+function Data.streamfrom{T}(m::AbstractMorphism{PullBack}, ::Type{Data.Column}, ::Type{T}, col)
+    Data.streamfrom(m.s, Data.Column, T, col)
 end
 #=========================================================================================
-    </harvester>
+    </PullBack>
 =========================================================================================#
 
 
 #=========================================================================================
-    <sower>
+    <PushForward>
 =========================================================================================#
 function Sink{T<:Data.StreamType}(snk, sch::Data.Schema, ::Type{T}, append::Bool,
                                   ref::Vector{UInt8})
-    Sower(snk, sch, Symbol[])
+    # TODO implement this!
 end
 
-Data.streamtypes(s::Sower) = Data.streamtypes(typeof(s.snk))
+Data.streamtypes(m::AbstractMorphism{PushForward}) = Data.streamtypes(typeof(m.s))
 
-function Data.streamto!{T}(s::Sower, ::Type{Data.Field}, val::T, row, col)
-    Data.streamto!(s.snk, Data.Field, val, row, col)
+function Data.streamto!{T}(m::AbstractMorphism{PushForward},
+                           ::Type{Data.Field}, val::T, row, col)
+    Data.streamto!(m.s, Data.Field, val, row, col)
 end
-function Data.streamto!{T}(s::Sower, ::Type{Data.Field}, val::T, row, col, sch::Data.Schema)
-    Data.streamto!(s.snk, Data.Field, val, row, col, sch)
+function Data.streamto!{T}(m::AbstractMorphism{PushForward},
+                           ::Type{Data.Field}, val::T, row, col, sch::Data.Schema)
+    Data.streamto!(m.s, Data.Field, val, row, col, sch)
 end
 
-function Data.streamto!{T}(s::Sower, ::Type{Data.Column}, column::T, row, col)
-    Data.streamto!(s.snk, Data.Column, column, row, col)
+function Data.streamto!{T}(m::AbstractMorphism{PushForward},
+                           ::Type{Data.Column}, column::T, row, col)
+    Data.streamto!(m.s, Data.Column, column, row, col)
 end
-function Data.streamto!{T}(s::Sower, ::Type{Data.Column}, column::T, row, col,
+function Data.streamto!{T}(m::AbstractMorphism{PushForward},
+                           ::Type{Data.Column}, column::T, row, col,
                            sch::Data.Schema)
-    Data.streamto!(s.snk, Data.Column, column, row, col, sch)
+    Data.streamto!(m.s, Data.Column, column, row, col, sch)
 end
 #=========================================================================================
-    <sower>
+    <PushForward>
 =========================================================================================#
 
 

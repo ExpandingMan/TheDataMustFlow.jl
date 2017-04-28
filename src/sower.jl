@@ -3,107 +3,76 @@
 """
 # Type: `Sower`
 
-This data type wraps an object `snk` that implements the `DataStreams` sink interface.
-It is used for transfering machine learning data back into datasets.
-
-See, for example, `migrate!` and `sow!`.
-
-## Constructors
-
-    Sower(sink, schema, newycols)
-    Sower(sink, newycols)
-
-One should pass a sink object which data will be written to.  Typically that data will be
-in the form of a raw matrix (presumably some sort of machine learning output).  The columns
-names passed should be the names into which the columns of the matrices should be
-transferred.
+***TODO*** Documentation!!!
 """
 struct Sower <: AbstractMorphism{PushForward}
-    snk::Any
+    s::Any
     schema::Data.Schema
 
-    newycols::Vector{Symbol}
+    cols::Vector{Tuple}
+    funcs::Vector{Function}
 
-    function Sower(sink, schema::Data.Schema, newycols::AbstractVector{Symbol})
-        sinkcols = Symbol.(Data.header(schema))
-        # for now we require that the newycols are already in the sink
-        if !all(yc ∈ sinkcols for yc ∈ newycols)
-            throw(ArgumentError("New y columns must already exist in sink."))
-        end
-        new(sink, schema, newycols)
+
+    function Sower(s, sch::Data.Schema, cols::AbstractVector{<:Tuple},
+                         funcs::AbstractVector{<:Function})
+        new(s, sch, cols, funcs)
     end
-    function Sower(sink, newycols::AbstractVector{Symbol})
-        Sower(sink, Data.schema(sink), newycols)
+    function Sower(s, cols::AbstractVector{<:Tuple},
+                         funcs::AbstractVector{<:Function})
+        new(s, Data.schema(s), cols, funcs)
+    end
+
+    function Sower(s, sch::Data.Schema, cols::AbstractVector{Symbol},
+                         funcs::AbstractVector{<:Function})
+        cols = [tuple((sch[string(c)] for c ∈ co)...) for co ∈ cols]
+        Sower(s, sch, cols, funcs)
+    end
+    function Sower(s, cols::AbstractVector{Symbol},
+                         funcs::AbstractVector{<:Function})
+        Sower(s, Data.schema(s), cols, func)
     end
 end
 export Sower
 
 
 #=========================================================================================
+    <intermediate constructors>
+=========================================================================================#
+function Sower(s, sch::Data.Schema, cols::AbstractVector{Tuple})
+    Sower(s, sch, cols, Function[identity for i ∈ 1:length(cols)])
+end
+function Sower(s, cols::AbstractVector{Tuple})
+    Sower(s, Data.schema(s), cols)
+end
+
+function Sower(s, sch::Data.Schema, cols::AbstractVector{<:Integer})
+    Sower(s, sch, Tuple[tuple(cols...)])
+end
+function Sower(s, cols::AbstractVector{<:Integer})
+    Sower(s, Data.schema(s), cols)
+end
+function Sower(s, sch::Data.Schema, cols::AbstractVector{Symbol})
+    Sower(s, sch, colidx(sch, cols))
+end
+function Sower(s, cols::AbstractVector{Symbol})
+    Sower(s, Data.schema(s), cols)
+end
+
+Sower(s, cols::Symbol...) = Sower(s, collect(cols))
+#=========================================================================================
+    </intermediate constructrs>
+=========================================================================================#
+
+
+
+
+
+#=========================================================================================
     <migrating>
 =========================================================================================#
-function _migrate_column!{From,To}(s::Sower, src, fromcol::Integer, tocol::Integer,
-                                   ::Type{From}, ::Type{To},
-                                   batch_idx::AbstractVector{<:Integer},
-                                   index_map::Function)
-    v = streamfrom(src, Data.Column, From, batch_idx, fromcol)
-    v = convert(To, v)
-    streamto!(s.snk, Data.Column, v, index_map.(batch_idx), tocol, s.schema)
-end
-function _migrate_batch!(s::Sower, src, colmap::Dict, fromtypes::Dict, totypes::Dict,
-                         batch_idx::AbstractVector{<:Integer}, index_map::Function)
-    for (fromcol, tocol) ∈ colmap
-        _migrate_column!(s, src, fromcol, tocol, fromtypes[fromcol], totypes[tocol],
-                         batch_idx, index_map)
-    end
-end
-
-"""
-    migrator!(s::Sower, src[, cols::AbstractVector{Symbol}], idx::AbstractVector{<:Integer};
-              name_map::Dict=Dict(), batch_size::Integer=DEFAULT,
-              index_map::Function=identity)
-
-Returns a function `m!(idx)` that transfers columns `cols` from the source `src`
-(which must implement the `DataStreams` source interface) to the `Sower`s sink.
-This will occur only for the index `idx` of the source.  If the columns in the
-sink have different names from those in the source, entries should appear in
-`name_map` in the form `source_name=>sink_name`.  The transfer will be done in
-batches of size `batch_size`.  The index `i` to which data is written will be
-`index_map(α)` where `α` is the source index.  If the `cols` argument is
-omitted, all columns from the source will be used.
-"""
 function migrator(s::Sower, src, cols::AbstractVector{Symbol};
-                  name_map::Dict=Dict(),
-                  index_map::Function=identity)
-    sch = Data.schema(src)
-    mcols = colidx(sch, cols)
-    colmap = Dict()
-    for (mcol, mcolname) ∈ zip(mcols, cols)
-        colmap[mcol] = colidx(sch, get(name_map, mcolname, mcolname))
-    end
-    fromtypes = Data.types(sch)
-    fromtypes = Dict(i=>vectortype(fromtypes[i]) for (i,v) ∈ colmap)
-    totypes = Data.types(s.schema)
-    totypes = Dict(i=>vectortype(totypes[i]) for (k,i) ∈ colmap)
-    idx::AbstractVector{<:Integer} -> _migrate_batch!(s, src, colmap, fromtypes, totypes,
-                                                      idx, index_map)
-end
-function migrator(s::Sower, src; name_map::Dict=Dict(),
-                  index_map::Function=identity)
-    migrator(s, src, Symbol.(Data.header(Data.schema(src))), name_map=name_map,
-             index_map=index_map)
-end
-# these have internal Sower constructors
-function migrator(source_sink::Pair, cols::AbstractVector{Symbol};
-                  name_map::Dict=Dict(),
-                  index_map::Function=identity)
-    s = Sower(source_sink[2], Symbol[])
-    migrator(s, source_sink[1], cols, name_map=name_map, index_map=index_map)
-end
-function migrator(source_sink::Pair;
-                  name_map::Dict=Dict(), index_map::Function=identity)
-    s = Sower(source_sink[2], Symbol[])
-    migrator(s, source_sink[1], name_map=name_map, index_map=index_map)
+                  name_map::Dict=Dict(), index_map::Function)
+
 end
 export migrator
 

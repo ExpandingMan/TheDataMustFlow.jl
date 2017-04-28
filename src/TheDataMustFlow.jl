@@ -5,6 +5,8 @@ module TheDataMustFlow
 using DataStreams
 using NullableArrays
 
+import Base.convert
+
 const DEFAULT_BATCH_SIZE = 16384
 const DEFAULT_FILTER_BATCH_SIZE = 2^18
 const DEFAULT_HARVEST_BATCH_SIZE = 16384

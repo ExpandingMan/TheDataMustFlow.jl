@@ -163,6 +163,13 @@ function filterall{T<:Integer}(src, idx::AbstractVector{T};
     filterall(StreamFilter(src; kwargs...), idx, batch_size=batch_size)
 end
 export filterall
+
+
+# conversions
+Base.convert(::Type{Morphism{PullBack}}, f::StreamFilter) = Morphism{PullBack}(f.s, f.schema,
+                                                                               f.cols, f.funcs)
+Base.convert(::Type{Morphism}, f::StreamFilter) = Morphism{PullBack}(f.s, f.schema,
+                                                                     f.cols, f.funcs)
 #=========================================================================================
     </basic functions>
 =========================================================================================#
