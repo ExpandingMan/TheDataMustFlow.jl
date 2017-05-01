@@ -162,6 +162,13 @@ function filterall{T<:Integer}(src, idx::AbstractVector{T};
                                kwargs...)
     filterall(StreamFilter(src; kwargs...), idx, batch_size=batch_size)
 end
+function filterall(f::StreamFilter; batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
+    filterall(f, 1:size(f,1), batch_size=batch_size)
+end
+function filterall(src; batch_size=DEFAULT_FILTER_BATCH_SIZE, kwargs...)
+    sf = StreamFilter(src; kwargs...)
+    filterall(sf, batch_size=batch_size)
+end
 export filterall
 
 

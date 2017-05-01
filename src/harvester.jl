@@ -15,24 +15,15 @@ struct Harvester <: AbstractMorphism{PullBack}
     cols::Vector{Tuple}
     funcs::Vector{Function}
 
-    # this will basically be a plain Morphism with a default setup
-    function Harvester(s, sch::Data.Schema, cols::AbstractVector{<:Tuple},
+    function Harvester(s, sch::Data.Schema,
+                       cols::AbstractVector{<:Tuple},
                        funcs::AbstractVector{<:Function})
+        cols = Tuple[_handle_col_args(sch, t) for t ∈ cols]
         new(s, sch, cols, funcs)
     end
     function Harvester(s, cols::AbstractVector{<:Tuple},
-                       funcs::AbstractVector{<:Function})
+                         funcs::AbstractVector{<:Function})
         new(s, Data.schema(s), cols, funcs)
-    end
-
-    function Harvester(s, sch::Data.Schema, cols::AbstractVector{Symbol},
-                       funcs::AbstractVector{<:Function})
-        cols = [tuple((sch[string(c)] for c ∈ co)...) for co ∈ cols]
-        Harvester(s, sch, cols, funcs)
-    end
-    function Harvester(s, cols::AbstractVector{Symbol},
-                       funcs::AbstractVector{<:Function})
-        Harvester(s, Data.schema(s), cols, func)
     end
 end
 export Harvester
@@ -71,7 +62,7 @@ end
 export harvester
 
 
-function batchiter(h::Harvester, idx::AbstractVector{<:Integer};
+function batchiter(idx::AbstractVector{<:Integer}, h::Harvester;
                    batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
     batchiter(harvester(h), idx, batch_size)
 end

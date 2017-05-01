@@ -36,6 +36,7 @@ include("morphism.jl")
 include("streamfilter.jl")
 include("harvester.jl")
 include("sower.jl")
+include("migrator.jl")
 include("datastreams.jl")
 
 

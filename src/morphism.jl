@@ -5,6 +5,13 @@ struct PushForward <: MapDirection end
 export PullBack, PushForward
 
 
+# helper functions used by constructor
+_handle_col_arg(sch::Data.Schema, c::Integer) = c
+_handle_col_arg(sch::Data.Schema, c::String) = sch[c]
+_handle_col_arg(sch::Data.Schema, c::Symbol) = _handle_col_arg(sch, string(c))
+
+_handle_col_args(sch::Data.Schema, t::Tuple) = tuple((_handle_col_arg(sch,c) for c ∈ t)...)
+
 
 struct Morphism{T<:MapDirection} <: AbstractMorphism{T}
     s::Any  # this can be either a source or a sink
@@ -15,26 +22,16 @@ struct Morphism{T<:MapDirection} <: AbstractMorphism{T}
 
     # may add a new field for conversions
 
-    function Morphism{T}(s, sch::Data.Schema, cols::AbstractVector{<:Tuple},
+    function Morphism{T}(s, sch::Data.Schema,
+                         cols::AbstractVector{<:Tuple},
                          funcs::AbstractVector{<:Function}) where T
+        cols = Tuple[_handle_col_args(sch, t) for t ∈ cols]
         new(s, sch, cols, funcs)
     end
     function Morphism{T}(s, cols::AbstractVector{<:Tuple},
                          funcs::AbstractVector{<:Function}) where T
         new(s, Data.schema(s), cols, funcs)
     end
-
-    function Morphism{T}(s, sch::Data.Schema, cols::AbstractVector{Symbol},
-                         funcs::AbstractVector{<:Function}) where T
-        cols = [tuple((sch[string(c)] for c ∈ co)...) for co ∈ cols]
-        Morphism{T}(s, sch, cols, funcs)
-    end
-    function Morphism{T}(s, cols::AbstractVector{Symbol},
-                         funcs::AbstractVector{<:Function}) where T
-        Morphism{T}(s, Data.schema(s), cols, func)
-    end
-
-    # TODO make constructor macros
 end
 export Morphism
 
@@ -50,6 +47,15 @@ end
 export morphism
 
 
+function morphism{D<:MapDirection,R}(::Type{D}, s, sch::Data.Schema,
+                                     cols::AbstractVector{<:Tuple},
+                                     funcs::AbstractVector{<:Function}, ::Type{R}=Tuple)
+    morphism(Morphism{D}(s, sch, cols, funcs), R)
+end
+function morphism{D<:MapDirection,R}(::Type{D}, s, cols::AbstractVector{<:Tuple},
+                                     funcs::AbstractVector{<:Function}, ::Type{R}=Tuple)
+    morphism(Morphism{D}(s, cols, funcs), R)
+end
 
 
 

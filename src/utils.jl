@@ -4,6 +4,10 @@ function colidx{T<:Union{String,Symbol}}(sch::Data.Schema, cols::AbstractVector{
     Int[colidx(sch,n) for n ∈ cols]
 end
 
+dictfunc(f::Function) = f
+dictfunc{K,V}(dict::Dict{K,V})::V = (k::K -> dict[k])
+dictfunc{K,V}(dict::Dict{K,V}, d::V)::V = (k::K -> get(dict, k, d))
+
 
 #=========================================================================================
     <BatchIterator>
