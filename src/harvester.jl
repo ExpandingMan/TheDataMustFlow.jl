@@ -23,7 +23,7 @@ struct Harvester <: AbstractMorphism{PullBack}
     end
     function Harvester(s, cols::AbstractVector{<:Tuple},
                          funcs::AbstractVector{<:Function})
-        new(s, Data.schema(s), cols, funcs)
+        Harvester(s, Data.schema(s), cols, funcs)
     end
 end
 export Harvester
@@ -32,18 +32,35 @@ export Harvester
 #=========================================================================================
     <intermediate constructors>
 =========================================================================================#
+_coerce_vec{T}(::Type{T}, v::AbstractVector, val) = convert(Vector{T}, v)
+_coerce_vec{T}(::Type{T}, v::AbstractVector, ::Type{Void}) = convert(Vector{T}, v)
+function _coerce_vec{T}(::Type{T}, v::NullableVector, f::Function)
+    ℓ = length(v)
+    o = Vector{T}(ℓ)
+    for i ∈ 1:ℓ
+        v.isnull[i] ? (o[i] = f()) : (o[i] = v.values[i])
+    end
+    o
+end
+_coerce_vec{T}(::Type{T}, v::NullableVector, val) = _coerce_vec(T, v, () -> val)
+_coerce_vec{T}(::Type{T}, v::NullableVector, ::Type{Void}) = convert(Vector{T}, v)
+
+
 # this returns the core function which just converts and concatenates
-function _create_hcat_convert{T}(::Type{T})
-    (vs::AbstractVector...) -> hcat((convert(Vector{T}, v) for v ∈ vs)...)
+function _create_hcat_convert{T}(::Type{T}, val)
+    (vs::AbstractVector...) -> hcat((_coerce_vec(T, v, val) for v ∈ vs)...)
 end
 
-function Harvester{T}(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector{Symbol}...)
+function Harvester{T}(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector{Symbol}...;
+                      null_replacement=nothing)
     cols = Tuple[tuple(colidx(sch, mc)...) for mc ∈ matrix_cols]
-    funcs = Function[_create_hcat_convert(T) for c ∈ cols]
+    funcs = Function[_create_hcat_convert(T, null_replacement) for c ∈ cols]
     Harvester(s, sch, cols, funcs)
 end
-function Harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector{Symbol}...)
-    Harvester(s, T, Data.schema(s), matrix_cols...)
+
+function Harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector{Symbol}...;
+                      null_replacement=nothing)
+    Harvester(s, T, Data.schema(s), matrix_cols..., null_replacement=null_replacement)
 end
 #=========================================================================================
     </intermediate constructors>

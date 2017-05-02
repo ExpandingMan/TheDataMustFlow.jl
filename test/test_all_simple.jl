@@ -23,7 +23,8 @@ nrows = size(src, 1)
 # sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
 #                        Header2=(i -> i % 3 == 0))
 # collect all valid indices
-idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+idx = @btime filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+# above takes about 2.5s
 
 # construct Harvester
 harvest = harvester(src, Float64, [:A, :C], [:B, :D])
@@ -35,12 +36,12 @@ header = [Symbol.(Data.header(src_sch)); :γ; :δ]
 sink = DataTable(dtypes, header, nrows)
 
 # migrate everything
-@time migrate!(1:nrows, src=>sink)
+@btime migrate!(1:nrows, src=>sink)  # about 3.5s
 
 # create Sower
 sow! = sower(sink, [:γ, :δ])
-# main loop
-@time for sidx ∈ batchiter(idx, batch_size)
+# main loop, about 0.5s
+@btime for sidx ∈ batchiter(idx, batch_size)
     X, y = harvest(sidx)
     y = -X
     sow!(sidx, y)

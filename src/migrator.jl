@@ -42,9 +42,9 @@ end
 function migrator(src, src_cols::AbstractVector{Symbol},
                   snk, snk_cols::AbstractVector{Symbol};
                   index_map::Function=identity)
-    harvest = harvester(src, Any, src_cols)
-    sow! = sower(snk, snk_cols)
-    migrator(harvest, sow!, index_map=index_map)
+    ϕ = Morphism{PullBack}(src, src_cols, identity)
+    θ = Morphism{PushForward}(snk, snk_cols, identity)
+    migrator(ϕ, θ, index_map=index_map)
 end
 
 function migrator(src, snk, src_cols::AbstractVector{Symbol};

@@ -48,29 +48,62 @@ export StreamFilter
 #=========================================================================================
     <intermediate constructors>
 =========================================================================================#
-function _combine_streamfilter_funcs(funcs::AbstractVector{<:Function})
+function _nolift_func(f::Function)
+    g(v::AbstractArray) = f.(v)
+
+    function g(v::NullableArray)
+        o = BitArray(length(v))
+        for i ∈ 1:length(v)
+            o[i] = f(v[i])
+        end
+        o
+    end
+
+    g
+end
+
+function _combine_streamfilter_funcs(funcs::AbstractVector{<:Function},
+                                     lift::Type{Val{false}}, logical_op::Function=(&))
     ℓ = length(funcs)
-    function (args::AbstractVector...)
-        .&((funcs[i].(args[i]) for i ∈ 1:ℓ)...)
+    funcs = _nolift_func.(funcs)
+    function g(args::AbstractVector...)
+        logical_op.((funcs[i](args[i]) for i ∈ 1:ℓ)...)
     end
 end
 
+function _combine_streamfilter_funcs(funcs::AbstractVector{<:Function}, lift::Type{Val{true}},
+                                     logical_op::Function=(&))
+    ℓ = length(funcs)
+    function g(args::AbstractVector...)
+        logical_op.((funcs[i].(args[i]) for i ∈ 1:ℓ)...)
+    end
+end
+
+
 # this  constructor takes user functions and combines them
 function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{<:Integer},
-                      filterfuncs::AbstractVector{<:Function})
-    StreamFilter(s, sch, cols, _combine_streamfilter_funcs(filterfuncs))
+                      filterfuncs::AbstractVector{<:Function};
+                      lift_nulls::Bool=true, logical_op::Function=(&))
+    StreamFilter(s, sch, cols,
+                 _combine_streamfilter_funcs(filterfuncs, Val{lift_nulls}, logical_op))
 end
 function StreamFilter(s, cols::AbstractVector{<:Integer},
-                      filterfuncs::AbstractVector{<:Function})
-    StreamFilter(s, Data.schema(s), cols, filterfuncs)
+                      filterfuncs::AbstractVector{<:Function};
+                      lift_nulls::Bool=true, logical_op::Function=(&))
+    StreamFilter(s, Data.schema(s), cols, filterfuncs, lift_nulls=lift_nulls,
+                 logical_op=logical_op)
 end
 function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{Symbol},
-                      filterfuncs::AbstractVector{<:Function})
-    StreamFilter(s, sch, colidx(sch, cols), filterfuncs)
+                      filterfuncs::AbstractVector{<:Function};
+                      lift_nulls::Bool=true, logical_op::Function=(&))
+    StreamFilter(s, sch, colidx(sch, cols), filterfuncs, lift_nulls=lift_nulls,
+                 logical_op=logical_op)
 end
 function StreamFilter(s, cols::AbstractVector{Symbol},
-                      filterfuncs::AbstractVector{<:Function})
-    StreamFilter(s, Data.schema(s), cols, filterfuncs)
+                      filterfuncs::AbstractVector{<:Function};
+                      lift_nulls::Bool=true, logical_op::Function=(&))
+    StreamFilter(s, Data.schema(s), cols, filterfuncs, lift_nulls=lift_nulls,
+                 logical_op=logical_op)
 end
 #=========================================================================================
     </intermediate constructors>
@@ -84,10 +117,10 @@ _streamfilter_handle_kwarg(f::Function) = f
 _streamfilter_handle_kwarg(L::AbstractVector) = (x -> (x ∈ L))
 # TODO any other cases to add?
 
-function StreamFilter(src; kwargs...)
+function StreamFilter(src; lift_nulls::Bool=true, logical_op::Function=(&), kwargs...)
     cols = convert(Vector{Symbol}, getindex.(kwargs,1))
     funs = _streamfilter_handle_kwarg.(getindex.(kwargs,2))
-    StreamFilter(src, cols, funs)
+    StreamFilter(src, cols, funs, lift_nulls=lift_nulls, logical_op=logical_op)
 end
 #=========================================================================================
     </advanced constructors>
@@ -98,7 +131,10 @@ end
 #=========================================================================================
     <basic functions>
 =========================================================================================#
-streamfilter(f::StreamFilter, ::Type{Bool}) = morphism(f)
+function streamfilter(sf::StreamFilter, ::Type{Bool})
+    m = morphism(sf)  # returns single element tuple
+    idx::AbstractVector{<:Integer} -> m(idx)[1]
+end
 
 """
     streamfilter(f::StreamFilter)
@@ -108,11 +144,13 @@ source for rows satisfying the specified conditions.
 """
 function streamfilter(f::StreamFilter)
     func = streamfilter(f, Bool)
-    idx -> find(func(idx)) + idx[1] - 1
+    idx::AbstractVector{<:Integer} -> find(func(idx)) + idx[1] - 1
 end
-streamfilter(src, cols, funcs) = streamfilter(StreamFilter(src, cols, funcs))
-function streamfilter(src, cols, funcs, ::Type{Bool})
-    streamfilter(StreamFilter(src, cols, funcs, Bool))
+function streamfilter(src, cols, funcs; kwargs...)
+    streamfilter(StreamFilter(src, cols, funcs; kwargs...))
+end
+function streamfilter(src, cols, funcs, ::Type{Bool}; kwargs...)
+    streamfilter(StreamFilter(src, cols, funcs; kwargs...), Bool)
 end
 streamfilter(src; kwargs...) = streamfilter(StreamFilter(src; kwargs...))
 function streamfilter(src, ::Type{Bool}; kwargs...)
@@ -154,8 +192,10 @@ end
 function filterall{T<:Integer}(src, cols::AbstractVector{Symbol},
                                funcs::AbstractVector{Function},
                                idx::AbstractVector{T};
+                               lift_nulls::Bool=true, logical_op::Function=(&),
                                batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE)
-    filterall(StreamFilter(src, cols, funs), idx, batch_size=batch_size)
+    filterall(StreamFilter(src, cols, funs, lift_nulls, logical_op),
+              idx, batch_size=batch_size)
 end
 function filterall{T<:Integer}(src, idx::AbstractVector{T};
                                batch_size::Integer=DEFAULT_FILTER_BATCH_SIZE,

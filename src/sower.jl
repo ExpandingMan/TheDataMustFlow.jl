@@ -21,7 +21,7 @@ struct Sower <: AbstractMorphism{PushForward}
     end
     function Sower(s, cols::AbstractVector{<:Tuple},
                    funcs::AbstractVector{<:Function})
-        new(s, Data.schema(s), cols, funcs)
+        Sower(s, Data.schema(s), cols, funcs)
     end
 end
 export Sower

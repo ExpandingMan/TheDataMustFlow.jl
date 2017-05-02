@@ -8,6 +8,9 @@ dictfunc(f::Function) = f
 dictfunc{K,V}(dict::Dict{K,V})::V = (k::K -> dict[k])
 dictfunc{K,V}(dict::Dict{K,V}, d::V)::V = (k::K -> get(dict, k, d))
 
+Base.identity(vs...) = vs
+# ident_vec(vs...) = Any[v for v ∈ vs]
+
 
 #=========================================================================================
     <BatchIterator>

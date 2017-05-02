@@ -1,3 +1,26 @@
+#=========================================================================================
+    Let ϕ be a pull morphism and θ be a push moprhism.
+
+    For each funtion ϕᵢ ∈ ϕ, we get
+        ϕᵢ(v₁,...,vₙ) → Any
+    where the vs are columns from the source specified by the column numbers.
+    (these are either combined into a tuple or vector)
+
+    For each function θᵢ ∈ θ, we get
+        θᵢ(V::Matrix) → Union{Matrix,Vector}
+    at which point the columns of the resulting Matrix are put into the columns
+    of the sink according to the column numbers provided.  If the result is a vector,
+    it is assumed that this is a vector of vectors which are to be placed in columns.
+
+    Note that the "identity" single-function Morphisms are created with
+    ```
+    Morphism{PullBack}(src, src_cols, identity)
+    Morphism{PushForward}(snk, snk_cols, identity)
+    ```
+    Where we have defined `identity` of multiple arguments to return a tuple of those
+    arguments.  (See utils.jl.)
+=========================================================================================#
+
 
 
 struct PullBack <: MapDirection end
@@ -30,21 +53,20 @@ struct Morphism{T<:MapDirection} <: AbstractMorphism{T}
     end
     function Morphism{T}(s, cols::AbstractVector{<:Tuple},
                          funcs::AbstractVector{<:Function}) where T
-        new(s, Data.schema(s), cols, funcs)
+        Morphism{T}(s, Data.schema(s), cols, funcs)
+    end
+
+
+    # constructor for using single function
+    function Morphism{T}(s, sch::Data.Schema, cols::AbstractVector, f::Function) where T
+        Morphism{T}(s, sch, Tuple[tuple(cols...)], Function[f])
+    end
+    function Morphism{T}(s, cols::AbstractVector, f::Function) where T
+        Morphism{T}(s, Data.schema(s), cols, f)
     end
 end
 export Morphism
 
-
-
-# returns function
-function morphism{R}(m::AbstractMorphism, ::Type{R}=Tuple)
-    if length(m.funcs) == 1
-        return _morphism_single(m, 1)
-    end
-    _morphism_multi(m, R)
-end
-export morphism
 
 
 function morphism{D<:MapDirection,R}(::Type{D}, s, sch::Data.Schema,
@@ -57,10 +79,15 @@ function morphism{D<:MapDirection,R}(::Type{D}, s, cols::AbstractVector{<:Tuple}
     morphism(Morphism{D}(s, cols, funcs), R)
 end
 
+# single function constructor
+function morphism{D<:MapDirection,R}(::Type{D}, s, cols::AbstractVector, f::Function,
+                                     ::Type{R}=Tuple)
+    moprhism(Morophism{D}(s, cols, f))
+end
+
 
 
 # TODO consider adding parameter arguments to functions
-
 #=========================================================================================
     <PullBack>
 =========================================================================================#
@@ -86,20 +113,7 @@ function _morphism_return_func(m::AbstractMorphism{PullBack}, colstypes::Vector,
     end
 end
 
-
-function _morphism_single(m::AbstractMorphism{PullBack}, i::Integer)
-    cols = m.cols[i]
-    f = m.funcs[i]
-    dtypes = coltypes(m.schema, cols)
-    colstypes = collect(zip(cols, dtypes))
-
-    function (idx::AbstractVector{<:Integer})
-        f((streamfrom(m.s, Data.Column, dtype, idx, c)
-           for (c,dtype) ∈ colstypes)...)
-    end
-end
-
-function _morphism_multi{R}(m::AbstractMorphism{PullBack}, ::Type{R})
+function morphism{R}(m::AbstractMorphism{PullBack}, ::Type{R}=Tuple)
     allcols = collect(∪((Set(a) for a ∈ m.cols)...))
     alltypes = coltypes(m.schema, allcols)
     colstypes = collect(zip(allcols, alltypes))
@@ -108,8 +122,6 @@ function _morphism_multi{R}(m::AbstractMorphism{PullBack}, ::Type{R})
 
     _morphism_return_func(m, colstypes, colmaps, nargs, R)
 end
-
-
 #=========================================================================================
     </PullBack>
 =========================================================================================#
@@ -120,11 +132,15 @@ end
     <PushForward>
 =========================================================================================#
 function _pushforward_column{T,To}(m::AbstractMorphism{PushForward},
-                                   col::Vector{T}, ::Type{To},
+                                   col::AbstractVector{T}, ::Type{To},
                                    idx::AbstractVector{<:Integer},
                                    tocol::Integer)
     streamto!(m.s, Data.Column, convert(To, col), idx, tocol, m.schema)
 end
+
+_get_column(X::Matrix, j::Integer) = X[:,j]
+_get_column(X::Vector, j::Integer) = X[j]  # for cases when we use a vector of vectors
+_get_column(X::Tuple, j::Integer) = X[j]   # for cases when we use a tuple of vectors
 
 
 function morphism(m::AbstractMorphism{PushForward})
@@ -132,11 +148,11 @@ function morphism(m::AbstractMorphism{PushForward})
     totypes = coltypes(m.schema, 1:size(m.schema,2))
 
     # length of args here should be equal to number of functions
-    function (idx::AbstractArray{<:Integer}, args::AbstractArray...)
+    function (idx::AbstractArray{<:Integer}, args::Union{AbstractArray,Tuple}...)
         for i ∈ 1:ℓ
             X = m.funcs[i](args[i])
             for (j,c) ∈ enumerate(m.cols[i])
-                _pushforward_column(m, X[:, j], totypes[c], idx, c)
+                _pushforward_column(m, _get_column(X,j), totypes[c], idx, c)
             end
         end
     end
