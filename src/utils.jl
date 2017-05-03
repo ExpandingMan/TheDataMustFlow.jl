@@ -59,7 +59,7 @@ Base.length(iter::BatchIterator) = iter.N
 
 
 """
-# `batchiter`
+## `batchiter`
     batchiter([f::Function], idx::AbstractVector{<:Integer}, batch_size::Integer)
 
 Returns an iterator over batches.  If a function is provided, this will apply the function

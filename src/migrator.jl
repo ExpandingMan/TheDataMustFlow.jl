@@ -10,14 +10,14 @@ _wrap_iter(x::AbstractVector) = x
 function migrator(src::Function, snk::Function; index_map::Function=identity)
     idx::AbstractVector{<:Integer} -> snk(index_map.(idx), _wrap_iter(src(idx))...)
 end
-function migrator(src::AbstractMorphism{PullBack}, snk::AbstractMorphism{PushForward};
+function migrator(src::AbstractMorphism{Pull}, snk::AbstractMorphism{Push};
                   index_map::Function=identity)
     migrator(morphism(src), morphism(snk), index_map=index_map)
 end
 function migrator(src_snk::Pair{<:Function,<:Function}; index_map::Function=identity)
     migrator(src_snk[1], src_snk[2], index_map=index_map)
 end
-function migrator(src_snk::Pair{<:AbstractMorphism{PullBack},<:AbstractMorphism{PushForward}};
+function migrator(src_snk::Pair{<:AbstractMorphism{Pull},<:AbstractMorphism{Push}};
                   index_map::Function=identity)
     migrator(src_snk[1], src_snk[2], index_map=index_map)
 end
@@ -26,24 +26,24 @@ function migrator(src, src_sch::Data.Schema, src_cols::AbstractVector{<:Tuple},
                   src_funcs::AbstractVector{<:Function},
                   snk, snk_sch::Data.Schema, snk_cols::AbstractVector{<:Tuple},
                   snk_funcs::AbstractVector{<:Function}; index_map::Function=identity)
-    ϕ = Morphism{PullBack}(src, src_sch, src_cols, src_funcs)
-    θ = Morphism{PushForward}(snk, snk_sch, snk_cols, snk_funcs)
+    ϕ = Morphism{Pull}(src, src_sch, src_cols, src_funcs)
+    θ = Morphism{Push}(snk, snk_sch, snk_cols, snk_funcs)
     migrator(ϕ, θ, index_map=index_map)
 end
 function migrator(src, src_cols::AbstractVector{<:Tuple},
                   src_funcs::AbstractVector{<:Function},
                   snk, snk_cols::AbstractVector{<:Tuple},
                   snk_funcs::AbstractVector{<:Function}; index_map::Function=identity)
-    ϕ = Morphism{PullBack}(src, src_cols, src_funcs)
-    θ = Morphism{PushForward}(src, src_cols, src_funcs)
+    ϕ = Morphism{Pull}(src, src_cols, src_funcs)
+    θ = Morphism{Push}(src, src_cols, src_funcs)
     migrator(ϕ, θ, index_map=index_map)
 end
 
 function migrator(src, src_cols::AbstractVector{Symbol},
                   snk, snk_cols::AbstractVector{Symbol};
                   index_map::Function=identity)
-    ϕ = Morphism{PullBack}(src, src_cols, identity)
-    θ = Morphism{PushForward}(snk, snk_cols, identity)
+    ϕ = Morphism{Pull}(src, src_cols, identity)
+    θ = Morphism{Push}(snk, snk_cols, identity)
     migrator(ϕ, θ, index_map=index_map)
 end
 

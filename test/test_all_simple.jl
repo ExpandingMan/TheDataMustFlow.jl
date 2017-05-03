@@ -23,7 +23,8 @@ nrows = size(src, 1)
 # sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
 #                        Header2=(i -> i % 3 == 0))
 # collect all valid indices
-idx = @btime filterall(src, 1:nrows, Header1=(i -> i % 2 == 0), Header2=(i -> i % 3 == 0))
+idx = @btime filterall(src, 1:nrows, Header1=(i -> i % 2 == 0),
+                       Header2=(i -> i % 3 == 0))
 # above takes about 2.5s
 
 # construct Harvester

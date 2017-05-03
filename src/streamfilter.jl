@@ -3,21 +3,60 @@
 
 # this should be able to handle sources with nulls
 """
-# Type: `StreamFilter`
+# Type: `StreamFilter <: AbstractMorphism{Pull}`
 
-This data type wraps an object `src` that implements the `DataStreams` source interface.
-It is used for determining which rows of the source satisfy certain conditions.
+A `StreamFilter` is an implementation of an `AbstractMorphism{Pull}` which is designed
+for determining which rows of a data table satisfy certain criteria.  It is intended that
+one of these be used to determine which index arguments should be passed to other methods,
+for example the results of `Morphism`, `Harvester` or `Sower`.
+
 
 ## Constructors
 
-    StreamFilter(src, filtercols::Vector{Symbol}, filterfuncs::Vector{Function})
+```julia
+StreamFilter(s, cols::AbstractVector, filterfuncs::AbstractVector{Function};
+             lift_nulls::Bool=true, logical_op::Function=(&))
+StreamFilter(s; lift_nulls::Bool=true, logical_op::Function=(&);
+             kwargs...)
+```
 
-One should pass a source object for which the appropriate rows will be determined.
-The functions in `filterfuncs` should be functions which apply to elements of the respective
-column given in `filtercols` and return booleans.  Indices for rows for which all of these
-booleans are true are returned.
+## Arguments
+
+- `s`: The source, which must be a tabular data format implementing the `DataStreams`
+    interface.
+- `cols`: The columns which are relevant to the filter.  This should be a vector of
+    integers or symbols.
+- `filterfuncs`: Functions which will be applied to each colum. These should act on a single
+    column element and return `Bool`.
+- `lift_nulls`: Whether the functions should be appied to `Nullable` or the elements they
+    contain.  If `lift_nulls` is true, rows with nulls present will not be included.
+- `logical_op`: The logical operator combining columns.  For example, if `(&)`, the results
+    of the filtering will return only rows for which *all* functions return true.
+- `kwargs...`: One can instead pass functions using the column they are to be associated
+    with as a keyword.  For example `Column1=f1, Column2=f2`.
+
+
+## Notes
+
+The function which implements the `StreamFilter` can be obtained by doing `streamfilter`.
+Alternatively, one may wish to run the filter on an entire dataset by doing `filterall`.
+
+
+## Examples
+
+```julia
+sfilter = StreamFilter(src, Col1=(i -> i % 2 == 0), Col2=(i -> i % 3 == 0))
+bfilt = streamfilter(sfilter, Bool)
+bfilt(1:100)  # will return a Vector{Bool} which is only true where
+              # Col1 is a multiple of 2 and Col2 is a multiple of 3 for rows 1 through 100
+
+filt = streamfilter(sfilter)
+filt(1:100)  # will return a Vector{Int} containing the numbers of rows where
+             # Col1 is a multiple of 2 and Col2 is a multiple of 3 for rows 1 through 100
+```
+
 """
-struct StreamFilter <: AbstractMorphism{PullBack}
+struct StreamFilter <: AbstractMorphism{Pull}
     s::Any
     schema::Data.Schema
 
@@ -131,17 +170,22 @@ end
 #=========================================================================================
     <basic functions>
 =========================================================================================#
+"""
+    streamfilter(sf::StreamFilter[, ::Type{Bool}])
+
+Returns a function that applies the functions provided by streamfilter to rows in a range.
+The function returned can be called like `filt(idx)` where `idx` is an `AbstractVector`
+of indices.  If `Bool` is passed, `filt` will return a `Vector{Bool}` with elements
+that are true only for rows which satisfy the requirements.  Otherwise, a vector of the
+row numbers will be returned.
+
+Optionally, one can pass the arguments for the `StreamFilter` constructor directly to
+this function.
+"""
 function streamfilter(sf::StreamFilter, ::Type{Bool})
     m = morphism(sf)  # returns single element tuple
     idx::AbstractVector{<:Integer} -> m(idx)[1]
 end
-
-"""
-    streamfilter(f::StreamFilter)
-
-Return a function `I(idx)` which searches through the indices `idx` of the `StreamFilter`'s
-source for rows satisfying the specified conditions.
-"""
 function streamfilter(f::StreamFilter)
     func = streamfilter(f, Bool)
     idx::AbstractVector{<:Integer} -> find(func(idx)) + idx[1] - 1
@@ -177,7 +221,7 @@ end
 """
     filterall(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
 
-Determine the indices determined by the stream filter.  These indices will be members of
+Determine the indices selected by the `StreamFilter`.  These indices will be members of
 `idx` for which the `StreamFilter` source satisfies the functions in was created with.
 """
 function filterall{T<:Integer}(f::Union{Function,StreamFilter}, idx::AbstractVector{T};
@@ -213,10 +257,10 @@ export filterall
 
 
 # conversions
-Base.convert(::Type{Morphism{PullBack}}, f::StreamFilter) = Morphism{PullBack}(f.s, f.schema,
-                                                                               f.cols, f.funcs)
-Base.convert(::Type{Morphism}, f::StreamFilter) = Morphism{PullBack}(f.s, f.schema,
-                                                                     f.cols, f.funcs)
+Base.convert(::Type{Morphism{Pull}}, f::StreamFilter) = Morphism{Pull}(f.s, f.schema,
+                                                                       f.cols, f.funcs)
+Base.convert(::Type{Morphism}, f::StreamFilter) = Morphism{Pull}(f.s, f.schema,
+                                                                 f.cols, f.funcs)
 #=========================================================================================
     </basic functions>
 =========================================================================================#

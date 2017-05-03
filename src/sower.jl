@@ -1,11 +1,34 @@
 
 
 """
-# Type: `Sower`
+# Type: `Sower <: AbstractMorphism{Push}`
 
-***TODO*** Documentation!!!
+This is a type for injecting data into a tabular data sink that implements the `DataStreams`
+sink interface.
+
+## Constructors
+
+```julia
+Sower(s, sch::Data.Schema, cols::AbstractVector)
+Sower(s, cols::AbstractVector)
+```
+
+## Arguments
+
+- `s`: The tabular data sink to inject data into. Must implement the `DataStreams` sink
+    interface.
+- `sch`: A `Data.Schema` for `s`. If it is not provided, it will be generated.
+- `cols`: The columns the provided matrices will be injected into. If multiple matrices
+    are being provided, the elements of this should be tuples.
+
+
+## Examples
+
+```julia
+
+```
 """
-struct Sower <: AbstractMorphism{PushForward}
+struct Sower <: AbstractMorphism{Push}
     s::Any
     schema::Data.Schema
 
