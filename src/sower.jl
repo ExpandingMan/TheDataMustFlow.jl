@@ -25,7 +25,10 @@ Sower(s, cols::AbstractVector)
 ## Examples
 
 ```julia
+X = rand(100, 2)
 
+sow = sower(sink, [:γ, :δ])  # can bypass Sower constructor
+sow!(1:100, X)  # the first column of X goes to :γ, second column goes to :δ
 ```
 """
 struct Sower <: AbstractMorphism{Push}
@@ -85,7 +88,8 @@ Sower(s, cols::Symbol...) = Sower(s, collect(cols))
 """
     sower(s::Sower)
 
-**TODO** Documentation!
+Returns a function `sow(idx, X...)` which will accept matrices `X` and map them into the
+rows specified by `idx` and columns specified by the `Sower`.
 """
 sower(s::Sower) = morphism(s)
 sower(s, cols::AbstractVector{<:Integer}) = sower(Sower(s, cols))
