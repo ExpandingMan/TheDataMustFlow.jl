@@ -83,14 +83,14 @@ function _create_hcat_convert{T}(::Type{T}, val)
     (vs::AbstractVector...) -> hcat((_coerce_vec(T, v, val) for v ∈ vs)...)
 end
 
-function Harvester{T}(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector{Symbol}...;
+function Harvester{T}(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector...;
                       null_replacement=nothing)
     cols = Tuple[tuple(colidx(sch, mc)...) for mc ∈ matrix_cols]
     funcs = Function[_create_hcat_convert(T, null_replacement) for c ∈ cols]
     Harvester(s, sch, cols, funcs)
 end
 
-function Harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector{Symbol}...;
+function Harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector...;
                       null_replacement=nothing)
     Harvester(s, T, Data.schema(s), matrix_cols..., null_replacement=null_replacement)
 end
@@ -106,7 +106,7 @@ Returns a function `harvest(idx)` which will return matrices generated from the 
 specified by `idx`.
 """
 harvester(h::Harvester) = morphism(h)
-function harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector{Symbol}...)
+function harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector...)
     harvester(Harvester(s, T, matrix_cols...))
 end
 export harvester

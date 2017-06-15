@@ -63,18 +63,12 @@ struct StreamFilter <: AbstractMorphism{Pull}
     cols::Vector{Tuple}
     funcs::Vector{Function}
 
-    function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{<:Integer},
+    function StreamFilter(s, sch::Data.Schema, cols::AbstractVector,
                           func::Function)
-        new(s, sch, Tuple[tuple(cols...)], Function[func])
+        cols = _handle_col_args(sch, cols)
+        new(s, sch, Tuple[cols], Function[func])
     end
-    function StreamFilter(s, cols::AbstractVector{<:Integer}, func::Function)
-        StreamFilter(s, Data.schema(s), cols, func)
-    end
-    function StreamFilter(s, sch::Data.Schema, cols::AbstractVector{Symbol},
-                          func::Function)
-        StreamFilter(s, sch, colidx(sch, cols), func)
-    end
-    function StreamFilter(s, cols::AbstractVector{Symbol}, func::Function)
+    function StreamFilter(s, cols::AbstractVector, func::Function)
         StreamFilter(s, Data.schema(s), cols, func)
     end
 

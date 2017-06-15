@@ -29,11 +29,17 @@ export Pull, Push
 
 
 # helper functions used by constructor
+_handle_col_arg(sch::Data.Schema, c) = throw(ArgumentError("$c is not a valid column name."))
+
 _handle_col_arg(sch::Data.Schema, c::Integer) = c
 _handle_col_arg(sch::Data.Schema, c::String) = sch[c]
 _handle_col_arg(sch::Data.Schema, c::Symbol) = _handle_col_arg(sch, string(c))
 
 _handle_col_args(sch::Data.Schema, t::Tuple) = tuple((_handle_col_arg(sch,c) for c ∈ t)...)
+
+function _handle_col_args(sch::Data.Schema, v::AbstractVector)
+    tuple((_handle_col_arg(sch,c) for c ∈ v)...)
+end
 
 
 """
@@ -50,8 +56,8 @@ while passing the data through a function.
 
 ```julia
 Morphism{T<:MapDirection}(s, sch::Data.Schema, cols::AbstractVector,
-                          funcs::AbstractVector)`
-Morphism{T<:MapDirection}(s, cols::AbstractVector, funcs::AbstractVector)`
+                          funcs::AbstractVector)
+Morphism{T<:MapDirection}(s, cols::AbstractVector, funcs::AbstractVector)
 Morphism{T<:MapDirection}(s, cols::AbstractVector, f::Function)`
 ```
 

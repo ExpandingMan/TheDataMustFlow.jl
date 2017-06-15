@@ -63,16 +63,10 @@ function Sower(s, cols::AbstractVector{Tuple})
     Sower(s, Data.schema(s), cols)
 end
 
-function Sower(s, sch::Data.Schema, cols::AbstractVector{<:Integer})
+function Sower(s, sch::Data.Schema, cols::AbstractVector)
     Sower(s, sch, Tuple[tuple(cols...)])
 end
-function Sower(s, cols::AbstractVector{<:Integer})
-    Sower(s, Data.schema(s), cols)
-end
-function Sower(s, sch::Data.Schema, cols::AbstractVector{Symbol})
-    Sower(s, sch, colidx(sch, cols))
-end
-function Sower(s, cols::AbstractVector{Symbol})
+function Sower(s, cols::AbstractVector)
     Sower(s, Data.schema(s), cols)
 end
 
@@ -92,8 +86,7 @@ Returns a function `sow(idx, X...)` which will accept matrices `X` and map them 
 rows specified by `idx` and columns specified by the `Sower`.
 """
 sower(s::Sower) = morphism(s)
-sower(s, cols::AbstractVector{<:Integer}) = sower(Sower(s, cols))
-sower(s, cols::AbstractVector{Symbol}) = sower(Sower(s, cols))
+sower(s, cols::AbstractVector) = sower(Sower(s, cols))
 export sower
 #=========================================================================================
     </sowing>
