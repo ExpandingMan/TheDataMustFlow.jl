@@ -4,6 +4,7 @@ module TheDataMustFlow
 
 using DataStreams
 using NullableArrays
+using MacroTools
 
 import Base.convert
 import Base.identity
