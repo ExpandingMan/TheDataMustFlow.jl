@@ -85,7 +85,7 @@ end
 
 function Harvester{T}(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector...;
                       null_replacement=nothing)
-    cols = Tuple[tuple(colidx(sch, mc)...) for mc ∈ matrix_cols]
+    cols = Tuple[tuple(mc...) for mc ∈ matrix_cols]
     funcs = Function[_create_hcat_convert(T, null_replacement) for c ∈ cols]
     Harvester(s, sch, cols, funcs)
 end

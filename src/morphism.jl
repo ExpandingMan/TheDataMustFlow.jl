@@ -141,7 +141,6 @@ struct Morphism{T<:MapDirection} <: AbstractMorphism{T}
         Morphism{T}(s, Data.schema(s), cols, funcs)
     end
 
-
     # constructor for using single function
     function Morphism{T}(s, sch::Data.Schema, cols::AbstractVector, f::Function) where T
         Morphism{T}(s, sch, Tuple[tuple(cols...)], Function[f])
@@ -149,8 +148,22 @@ struct Morphism{T<:MapDirection} <: AbstractMorphism{T}
     function Morphism{T}(s, cols::AbstractVector, f::Function) where T
         Morphism{T}(s, Data.schema(s), cols, f)
     end
+
+    # blank constructors
+    function Morphism{T}(s, sch::Data.Schema) where T
+        Morphism{T}(s, sch, Vector{Tuple}(), Vector{Function}())
+    end
+    function Morphism{T}(s) where T
+        Morphism{T}(s, Data.schema(s))
+    end
 end
 export Morphism
+
+
+function addfunc!(m::Morphism, cols, func::Function)
+    push!(m.cols, _handle_col_args(m.schema, cols))
+    push!(m.funcs, func)
+end
 
 
 """

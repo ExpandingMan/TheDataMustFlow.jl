@@ -4,6 +4,7 @@ module TheDataMustFlow
 
 using DataStreams
 using NullableArrays
+using CategoricalArrays
 using MacroTools
 
 import Base.convert
@@ -42,6 +43,7 @@ include("harvester.jl")
 include("sower.jl")
 include("migrator.jl")
 include("datastreams.jl")
+include("macros.jl")
 
 
 end # module
