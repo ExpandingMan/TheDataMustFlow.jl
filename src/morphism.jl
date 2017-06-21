@@ -41,6 +41,10 @@ function _handle_col_args(sch::Data.Schema, v::AbstractVector)
     tuple((_handle_col_arg(sch,c) for c ∈ v)...)
 end
 
+function _handle_col_args(::Type{Vector}, sch::Data.Schema, v::AbstractVector)
+    Int[_handle_col_arg(sch,c) for c ∈ v]
+end
+
 
 """
 # Type: `Morphism{T<:MapDirection}`
