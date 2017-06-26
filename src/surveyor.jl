@@ -43,6 +43,36 @@ export Surveyor
 getsurvey(sv::Surveyor, n::Integer) = sv.surveys[n]
 
 addsurvey!(sv::Surveyor, surv::Survey) = push!(sv.surveys, surv)
+
+function makesurvey!(sv::Surveyor)
+    surv = Survey()
+    for poolcol ∈ sv.poolcols
+        dtype = eltype(eltype(sv.schema, poolcol)) # outer eltype in case this is a nullable
+        surv.catpools[poolcol] = CategoricalPool(Vector{dtype}())
+    end
+    addsurvey!(sv, surv)[end]
+end
+
+function getpool(sv::Surveyor, col::Int, survey_number::Integer=-1)
+    if survey_number < 0
+        sv.surveys[end].catpools[col]
+    else
+        sv.surveys[survey_number].catpools[col]
+    end
+end
+function getpool(sv::Surveyor, col::String, survey_number::Integer=-1)
+    getpool(sv, sv.schema[col], survey_number)
+end
+getpool(sv::Surveyor, col::Symbol, survey_number::Integer=-1) = getpool(sv, string(col), survey_number)
+export getpool
+
+function Base.getindex(sv::Surveyor, survey_number::Integer=-1)
+    if survey_number < 0
+        sv.surveys[end].idx
+    else
+        sv.surveys[survey_number].idx
+    end
+end
 #=========================================================================================
     </surveyor>
 =========================================================================================#
@@ -97,9 +127,33 @@ function Surveyor(s, sch::Data.Schema, cols::AbstractVector, filterfuncs::Abstra
     Surveyor(s, sch, pull_cols,
              _combine_surveyor_funcs(filterfuncs, poolcolargs, lift_nulls, logical_op), pool_cols)
 end
+function Surveyor(s, cols::AbstractVector, filterfuncs::AbstractVector{<:Function};
+                  lift_nulls::Bool=true, logical_op::Function=(&),
+                  pool_cols::AbstractVector=[])
+    Surveyor(s, Data.schema(s), cols, filterfuncs, lift_nulls=lift_nulls, logical_op=logical_op,
+             pool_cols=pool_cols)
+end
 #=========================================================================================
     </intermediate constructors>
 =========================================================================================#
+
+
+#=========================================================================================
+    <advanced constructors>
+=========================================================================================#
+_surveyor_handle_kwarg(f::Function) = f
+_surveyor_handle_kwarg(L::AbstractVector) = (x -> (x ∈ L))
+
+function Surveyor(src; lift_nulls::Bool=true, logical_op::Function=(&), pool_cols::AbstractVector=[],
+                  kwargs...)
+    cols = convert(Vector{Symbol}, getindex.(kwargs,1))
+    funs = _surveyor_handle_kwarg.(getindex.(kwargs,2))
+    Surveyor(src, cols, funs; lift_nulls=lift_nulls, logical_op=logical_op, pool_cols=pool_cols)
+end
+#=========================================================================================
+    </advanced constructors>
+=========================================================================================#
+
 
 
 #=========================================================================================
@@ -120,7 +174,7 @@ end
 # TODO add size estimation for survey idx return
 function surveyor(sv::Surveyor; survey_number::Integer=-1)
     if survey_number < 1
-        surv = addsurvey!(sv, Survey())[end]
+        surv = makesurvey!(sv)
     else
         surv = getsurvey(sv, survey_number)
     end
@@ -130,11 +184,51 @@ function surveyor(sv::Surveyor; survey_number::Integer=-1)
     function (idx::AbstractVector{<:Integer})
         (b, colsvec), = m(idx)
         newidx = find(b) + idx[1] - 1
-        append!(surv.idx, idx)
-        newidx, colsvec
+        append!(surv.idx, newidx)
+
+        for (i,poolcol) ∈ enumerate(sv.poolcols)
+            append!(surv.catpools[poolcol], dropnull(colsvec[i]))
+        end
+
+        sv  # TODO reconsider how to do this
     end
 end
+
+function surveyor(src, cols, funcs; kwargs...)
+    surveyor(Surveyor(src, cols, funcs; kwargs...))
+end
+function surveyor(src, cols, funcs, ::Type{Bool}; kwargs...)
+    surveyor(Surveyor(src, cols, funcs; kwargs...), Bool)
+end
+surveyor(src; kwargs...) = surveyor(Surveyor(src; kwargs...))
+function surveyor(src, ::Type{Bool}; kwargs...)
+    surveyor(Surveyor(src; kwargs...), Bool)
+end
 export surveyor
+
+# TODO currently this is not compatible with what svr returns
+function batchiter(sv::Surveyor, idx::AbstractVector{<:Integer};
+                   batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+    svr = surveyor(sv)
+    batchiter(svr, idx, batch_size)
+end
+
+
+function surveyall{T<:Integer}(f::Union{Function,Surveyor}, idx::AbstractVector{T};
+                               batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+    iter = batchiter(f, idx; batch_size=batch_size)
+    o = Vector{T}()  # no way of predicting the size of this
+    for idxo ∈ iter
+        append!(o, idxo)
+    end
+    o
+end
+function surveyall{T<:Integer}(src, cols::AbstractVector, funcs::AbstractVector{<:Function},
+                               idx::AbstractVector{T};
+                               lift_nulls::Bool=true, logical_op::Function=(&),
+                               pool_cols::AbstractVector=[],
+                               batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+end
 #=========================================================================================
     </basic functions>
 =========================================================================================#

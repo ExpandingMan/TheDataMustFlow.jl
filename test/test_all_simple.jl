@@ -29,9 +29,14 @@ est = Estuaries.Source(src)
 #                        Header2=(i -> i % 3 == 0))
 
 svr = Surveyor(src, src_sch, [:Header1, :Header2], [(i -> i % 2 == 0), (i -> i % 3 == 0)],
-               pool_cols=[:Header2])
+               pool_cols=[:Header1, :Header2])
 sv = surveyor(svr)
-r, pvec = sv(1:20)
+sv(1:20)
+svr = sv(21:40)
+
+idx = svr[]
+pool = getpool(svr, "Header2")
+
 
 # # construct Harvester
 # harvest = harvester(src, Float64, [:A, :C], [:B, :D])

@@ -8,6 +8,10 @@ function coltypes(sch::Data.Schema, cols)
 end
 coltypes(sch::Data.Schema) = coltypes(sch, 1:length(Data.header(sch)))
 
+Base.eltype(sch::Data.Schema, i::Integer) = Data.types(sch)[i]
+Base.eltype(sch::Data.Schema, c::String) = eltype(sch, sch[c])
+Base.eltype(sch::Data.Schema, c::Symbol) = eltype(sch, string(c))
+
 # this will hopefully get implemented in DataStreams some day
 function streamfrom{T}(s, ::Type{Data.Column}, ::Type{Vector{T}},
                        rows::AbstractVector{<:Integer}, col::Integer)

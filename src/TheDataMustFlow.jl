@@ -9,9 +9,11 @@ using MacroTools
 
 import Base.convert
 import Base.identity
+import Base.eltype
+import Base.getindex
 
 const DEFAULT_BATCH_SIZE = 16384
-const DEFAULT_FILTER_BATCH_SIZE = 2^18
+const DEFAULT_SURVEY_BATCH_SIZE = 2^18
 const DEFAULT_HARVEST_BATCH_SIZE = 16384
 const DEFAULT_SOW_BATCH_SIZE = 16384
 
