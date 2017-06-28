@@ -11,6 +11,7 @@ import Base.convert
 import Base.identity
 import Base.eltype
 import Base.getindex
+import Base.size
 
 const DEFAULT_BATCH_SIZE = 16384
 const DEFAULT_SURVEY_BATCH_SIZE = 2^18
@@ -41,7 +42,6 @@ include("utils.jl")
 include("datastreams_extensions.jl")
 include("morphism.jl")
 include("surveyor.jl")
-# include("streamfilter.jl")
 include("harvester.jl")
 include("sower.jl")
 include("migrator.jl")

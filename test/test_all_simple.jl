@@ -28,15 +28,12 @@ est = Estuaries.Source(src)
 # idx = @btime filterall(src, 1:nrows, Header1=(i -> i % 2 == 0),
 #                        Header2=(i -> i % 3 == 0))
 
-svr = Surveyor(src, src_sch, [:Header1, :Header2], [(i -> i % 2 == 0), (i -> i % 3 == 0)],
-               pool_cols=[:Header1, :Header2])
-sv = surveyor(svr)
-sv(1:20)
-svr = sv(21:40)
-
-idx = svr[]
-pool = getpool(svr, "Header2")
-
+# create Surveyor
+# sv = surveyor(src, Header1=(i -> i % 2 == 0),
+#               Header2=(i -> i % 3 == 0))
+# collect all avlid indices
+sv = @btime surveyall(src, 1:nrows, Header1=(i -> i % 2 == 0),
+                      Header2=(i -> i % 3 == 0))
 
 # # construct Harvester
 # harvest = harvester(src, Float64, [:A, :C], [:B, :D])

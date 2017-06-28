@@ -1,4 +1,12 @@
-# TODO so far this is very much a work in progress and experimental
+#===================================================================================================
+    TODO:
+
+    I've been stressing out because I'd really like to come up with a much more general way of
+    doing transformations that depend on the entire dataset.  Right now this is a very ad hoc,
+    hackish thing and it cannot be easily extended to other purposes.
+
+    I STILL HAVEN'T FIGURED OUT THE BEST WAY FOR THIS TO RETURN
+===================================================================================================#
 
 
 #=========================================================================================
@@ -19,6 +27,53 @@ export Survey
 #=========================================================================================
     <surveyor>
 =========================================================================================#
+"""
+# Type: `Surveyor <: AbstractMorphism{Pull}`
+
+A `Surveyor` is an implementation of an `AbstractMorphism{Pull}` which is designed for gathering
+metadata which is necessary prior to transformation into a machine ingestible format.  It is
+intended that one of these be used to determine which index arguments should be passed to other
+methods, as well as how to construct transformations that depend on the entire dataset (such as labeling
+categorical variables).
+
+## Constructors
+```julia
+Surveyor(s, cols::AbstractVector, funcs::AbstractVector{Function};
+         lift_nulls::Bool=true, logical_op::Function=(&), pool_cols::AbstractVector=[])
+Surveyor(s; lift_nulls::Bool=true, logical_op::Function=(&), pool_cols::AbstractVector=[],
+         kwargs..._)
+```
+
+## Arguments
+- `s`: The source, which must be in a tabular data format implementing the `DataStreams` interface.
+- `cols`: The columns which are relevant to the filter.  This should be a vector of integers, strings
+    or symbols.
+- `funcs`: Functions which will be applied to each column. These should act on a single column element
+    and return `Bool`.
+- `lift_nulls`: Whether the functions should be applied to `Nullable` or the elements they contain.
+    If` lift_nulls` is true, rows with nulls present will not be included.
+- `logical_op`: The logical operator combining the output of the functions that act on the columns.
+    For example, if `(&)`, the results of the filtering will return only rows for which *all* functions
+    return true.
+- `kwargs...`: One can isntead pass functions using the column they are to be associated with as a
+    keyword.  For example `Column1=f1, Column2=f2`.
+- `pool_cols`: Columns for which `CategoricalPool`s will be created. These are for mapping the categories
+    to and from machine-ingestable integers.
+
+
+## Notes
+
+The function which implements the `Surveyor` can be obtained by doing `surveyor`.
+Alternatively, one may wish to run the surveyor on an entire dataset by doing `surveyall`.
+
+## Examples
+
+```julia
+svr = Surveyor(src, Col1=(i -> i % 2 == 0), Col2=(i -> i % 3 == 0))
+sv = surveyor(svr)
+sv(1:100)
+```
+"""
 struct Surveyor <: AbstractMorphism{Pull}
     s::Any
     schema::Data.Schema
@@ -43,6 +98,9 @@ export Surveyor
 getsurvey(sv::Surveyor, n::Integer) = sv.surveys[n]
 
 addsurvey!(sv::Surveyor, surv::Survey) = push!(sv.surveys, surv)
+
+Base.size(sv::Surveyor) = size(sv.schema)
+Base.size(sv::Surveyor, i::Integer) = size(sv.schema, i)
 
 function makesurvey!(sv::Surveyor)
     surv = Survey()
@@ -228,7 +286,22 @@ function surveyall{T<:Integer}(src, cols::AbstractVector, funcs::AbstractVector{
                                lift_nulls::Bool=true, logical_op::Function=(&),
                                pool_cols::AbstractVector=[],
                                batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+    surveyall(Surveyor(src, cols, funcs; lift_nulls=lift_nulls, logical_op=logical_op),
+              idx, batch_size=batch_size)
 end
+function surveyall{T<:Integer}(src, idx::AbstractVector{T};
+                               batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE, kwargs...)
+    surveyall(Surveyor(src; kwargs...), idx, batch_size=batch_size)
+end
+function surveyall(sv::Surveyor; batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+    surveyall(sv, 1:size(sv,1), batch_size=batch_size)
+end
+export surveyall
+
+
+# conversions
+Base.convert(::Type{Morphism{Pull}}, sv::Surveyor) = Morphism{Pull}(sv.s, sv.schema, sv.cols, sv.funcs)
+Base.convert(::Type{Morphism}, sv::Surveyor) = Morphism{Pull}(sv.s, sv.schema, sv.cols, sv.funcs)
 #=========================================================================================
     </basic functions>
 =========================================================================================#
