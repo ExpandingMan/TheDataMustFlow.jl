@@ -20,39 +20,32 @@ est = Estuaries.Source(src)
 # src = data
 # sink = data
 
-
-# create StreamFilter
-# sfilter = streamfilter(src, Header1=(i -> i % 2 == 0),
-#                        Header2=(i -> i % 3 == 0))
-# collect all valid indices
-# idx = @btime filterall(src, 1:nrows, Header1=(i -> i % 2 == 0),
-#                        Header2=(i -> i % 3 == 0))
-
 # create Surveyor
 # sv = surveyor(src, Header1=(i -> i % 2 == 0),
 #               Header2=(i -> i % 3 == 0))
 # collect all avlid indices
 sv = @btime surveyall(src, 1:nrows, Header1=(i -> i % 2 == 0),
-                      Header2=(i -> i % 3 == 0))
+                      Header2=(i -> i % 3 == 0), pool_cols=[:Header2])
+idx = sv[]
 
-# # construct Harvester
-# harvest = harvester(src, Float64, [:A, :C], [:B, :D])
-#
-#
-# # create a sink to put data back into
-# dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]
-# header = [Symbol.(Data.header(src_sch)); :γ; :δ]
-# sink = DataTable(dtypes, header, nrows)
-#
-# # migrate everything
-# @btime migrate!(1:nrows, src=>sink)
-#
-# # create Sower
-# sow! = sower(sink, [:γ, :δ])
-#
-# @btime for sidx ∈ batchiter(idx, batch_size)
-#     X, y = harvest(sidx)
-#     y = -X
-#     sow!(sidx, y)
-# end
+# construct Harvester
+harvest = harvester(src, Float64, [:A, :C], [:B, :D])
+
+
+# create a sink to put data back into
+dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]
+header = [Symbol.(Data.header(src_sch)); :γ; :δ]
+sink = DataTable(dtypes, header, nrows)
+
+# migrate everything
+@btime migrate!(1:nrows, src=>sink)
+
+# create Sower
+sow! = sower(sink, [:γ, :δ])
+
+@btime for sidx ∈ batchiter(idx, batch_size)
+    X, y = harvest(sidx)
+    y = -X
+    sow!(sidx, y)
+end
 

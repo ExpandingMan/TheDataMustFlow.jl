@@ -23,9 +23,10 @@ src = Feather.Source(filename)
 src_sch = Data.schema(src)
 nrows = size(src, 1)
 
-# create a filter to determine which rows to use
-idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0),
-                Header2=(i -> i % 3 == 0))
+# create a survey to determine which rows to use
+idx = surveyall(src, 1:nrows, Header1=(i -> i % 2 == 0),
+                Header2=(i -> i % 3 == 0))[]  # surveys contain a few pieces of data
+                                              # use this to get the index
 
 # create a harvester for extracting data
 harvest = harvester(src, Float64, [:A, :C], [:B, :D])

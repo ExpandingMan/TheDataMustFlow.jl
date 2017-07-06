@@ -34,9 +34,10 @@ src = Feather.Source(filename)
 src_sch = Data.schema(src)
 nrows = size(src, 1)
 
-# create a filter to determine which rows to use
-idx = filterall(src, 1:nrows, Header1=(i -> i % 2 == 0),
-                Header2=(i -> i % 3 == 0))
+# create a survey to determine which rows to use
+idx = surveyall(src, 1:nrows, Header1=(i -> i % 2 == 0),
+                Header2=(i -> i % 3 == 0))[]  # surveys contain a few pieces of data
+                                              # use this to get the index
 
 # create a harvester for extracting data
 harvest = harvester(src, Float64, [:A, :C], [:B, :D])
@@ -197,48 +198,44 @@ sow = sower(sink, [:γ, :δ])  # can bypass Sower constructor
 sow!(1:100, X)  # the first column of X goes to :γ, second column goes to :δ
 ```
 
-<a id='TheDataMustFlow.StreamFilter' href='#TheDataMustFlow.StreamFilter'>#</a>
-**`TheDataMustFlow.StreamFilter`** &mdash; *Type*.
+<a id='TheDataMustFlow.Surveyor' href='#TheDataMustFlow.Surveyor'>#</a>
+**`TheDataMustFlow.Surveyor`** &mdash; *Type*.
 
 
 
-**Type: `StreamFilter <: AbstractMorphism{Pull}`**
+**Type: `Surveyor <: AbstractMorphism{Pull}`**
 
-A `StreamFilter` is an implementation of an `AbstractMorphism{Pull}` which is designed for determining which rows of a data table satisfy certain criteria.  It is intended that one of these be used to determine which index arguments should be passed to other methods, for example the results of `Morphism`, `Harvester` or `Sower`.
+A `Surveyor` is an implementation of an `AbstractMorphism{Pull}` which is designed for gathering metadata which is necessary prior to transformation into a machine ingestible format.  It is intended that one of these be used to determine which index arguments should be passed to other methods, as well as how to construct transformations that depend on the entire dataset (such as labeling categorical variables).
 
 **Constructors**
 
 ```julia
-StreamFilter(s, cols::AbstractVector, filterfuncs::AbstractVector{Function};
-             lift_nulls::Bool=true, logical_op::Function=(&))
-StreamFilter(s; lift_nulls::Bool=true, logical_op::Function=(&);
-             kwargs...)
+Surveyor(s, cols::AbstractVector, funcs::AbstractVector{Function};
+         lift_nulls::Bool=true, logical_op::Function=(&), pool_cols::AbstractVector=[])
+Surveyor(s; lift_nulls::Bool=true, logical_op::Function=(&), pool_cols::AbstractVector=[],
+         kwargs..._)
 ```
 
 **Arguments**
 
-  * `s`: The source, which must be a tabular data format implementing the `DataStreams`   interface.
-  * `cols`: The columns which are relevant to the filter.  This should be a vector of   integers or symbols.
-  * `filterfuncs`: Functions which will be applied to each colum. These should act on a single   column element and return `Bool`.
-  * `lift_nulls`: Whether the functions should be appied to `Nullable` or the elements they   contain.  If `lift_nulls` is true, rows with nulls present will not be included.
-  * `logical_op`: The logical operator combining columns.  For example, if `(&)`, the results   of the filtering will return only rows for which *all* functions return true.
-  * `kwargs...`: One can instead pass functions using the column they are to be associated   with as a keyword.  For example `Column1=f1, Column2=f2`.
+  * `s`: The source, which must be in a tabular data format implementing the `DataStreams` interface.
+  * `cols`: The columns which are relevant to the filter.  This should be a vector of integers, strings   or symbols.
+  * `funcs`: Functions which will be applied to each column. These should act on a single column element   and return `Bool`.
+  * `lift_nulls`: Whether the functions should be applied to `Nullable` or the elements they contain.   If`lift_nulls` is true, rows with nulls present will not be included.
+  * `logical_op`: The logical operator combining the output of the functions that act on the columns.   For example, if `(&)`, the results of the filtering will return only rows for which *all* functions   return true.
+  * `kwargs...`: One can isntead pass functions using the column they are to be associated with as a   keyword.  For example `Column1=f1, Column2=f2`.
+  * `pool_cols`: Columns for which `CategoricalPool`s will be created. These are for mapping the categories   to and from machine-ingestable integers.
 
 **Notes**
 
-The function which implements the `StreamFilter` can be obtained by doing `streamfilter`. Alternatively, one may wish to run the filter on an entire dataset by doing `filterall`.
+The function which implements the `Surveyor` can be obtained by doing `surveyor`. Alternatively, one may wish to run the surveyor on an entire dataset by doing `surveyall`.
 
 **Examples**
 
 ```julia
-sfilter = StreamFilter(src, Col1=(i -> i % 2 == 0), Col2=(i -> i % 3 == 0))
-bfilt = streamfilter(sfilter, Bool)
-bfilt(1:100)  # will return a Vector{Bool} which is only true where
-              # Col1 is a multiple of 2 and Col2 is a multiple of 3 for rows 1 through 100
-
-filt = streamfilter(sfilter)
-filt(1:100)  # will return a Vector{Int} containing the numbers of rows where
-             # Col1 is a multiple of 2 and Col2 is a multiple of 3 for rows 1 through 100
+svr = Surveyor(src, Col1=(i -> i % 2 == 0), Col2=(i -> i % 3 == 0))
+sv = surveyor(svr)
+sv(1:100)
 ```
 
 <a id='TheDataMustFlow.batchiter' href='#TheDataMustFlow.batchiter'>#</a>
@@ -253,30 +250,6 @@ batchiter([f::Function], idx::AbstractVector{<:Integer}, batch_size::Integer)
 ```
 
 Returns an iterator over batches.  If a function is provided, this will apply the function to the batches created from the indices `idx` with batch size `batch_size`.
-
-<a id='TheDataMustFlow.batchiter-Tuple{TheDataMustFlow.StreamFilter,AbstractArray{#s4,1} where #s4<:Integer}' href='#TheDataMustFlow.batchiter-Tuple{TheDataMustFlow.StreamFilter,AbstractArray{#s4,1} where #s4<:Integer}'>#</a>
-**`TheDataMustFlow.batchiter`** &mdash; *Method*.
-
-
-
-**`StreamFilter`**
-
-```
-batchiter(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
-```
-
-Returns an iterator over batches returning the valid indices within each batch.
-
-<a id='TheDataMustFlow.filterall-Union{Tuple{T}, Tuple{Union{Function, TheDataMustFlow.StreamFilter},AbstractArray{T,1}}} where T<:Integer' href='#TheDataMustFlow.filterall-Union{Tuple{T}, Tuple{Union{Function, TheDataMustFlow.StreamFilter},AbstractArray{T,1}}} where T<:Integer'>#</a>
-**`TheDataMustFlow.filterall`** &mdash; *Method*.
-
-
-
-```
-filterall(f::StreamFilter, idx::AbstractVector{<:Integer}; batch_size::Integer=DEFAULT)
-```
-
-Determine the indices selected by the `StreamFilter`.  These indices will be members of `idx` for which the `StreamFilter` source satisfies the functions in was created with.
 
 <a id='TheDataMustFlow.harvester-Tuple{TheDataMustFlow.Harvester}' href='#TheDataMustFlow.harvester-Tuple{TheDataMustFlow.Harvester}'>#</a>
 **`TheDataMustFlow.harvester`** &mdash; *Method*.
@@ -319,16 +292,51 @@ sower(s::Sower)
 
 Returns a function `sow(idx, X...)` which will accept matrices `X` and map them into the rows specified by `idx` and columns specified by the `Sower`.
 
-<a id='TheDataMustFlow.streamfilter-Tuple{TheDataMustFlow.StreamFilter,Type{Bool}}' href='#TheDataMustFlow.streamfilter-Tuple{TheDataMustFlow.StreamFilter,Type{Bool}}'>#</a>
-**`TheDataMustFlow.streamfilter`** &mdash; *Method*.
+<a id='TheDataMustFlow.@morph-Tuple{Any,Expr}' href='#TheDataMustFlow.@morph-Tuple{Any,Expr}'>#</a>
+**`TheDataMustFlow.@morph`** &mdash; *Macro*.
 
 
 
 ```
-streamfilter(sf::StreamFilter[, ::Type{Bool}])
+@morph(m, block::Expr)
 ```
 
-Returns a function that applies the functions provided by streamfilter to rows in a range. The function returned can be called like `filt(idx)` where `idx` is an `AbstractVector` of indices.  If `Bool` is passed, `filt` will return a `Vector{Bool}` with elements that are true only for rows which satisfy the requirements.  Otherwise, a vector of the row numbers will be returned.
+Appends functions to the Morphism object `m`.  Every anonymous function appearing in the block will be added to `m`.  Functions should take arguments with the special type `Col{column_name}` where `column_name` is an integer, string or symbol designating the column to be used as an argument.
 
-Optionally, one can pass the arguments for the `StreamFilter` constructor directly to this function.
+For example
+
+```julia
+@morph M (a::Col{:A}, b::Col{:B}) -> a .+ b
+
+@morph M begin
+    function (a::Col{:A}, b::Col{:B})
+        a .- b
+    end
+
+    (c::Col{:C}, d::Col{:D}) -> c .* d
+end
+```
+
+Functions not matching this pattern will be unchanged.
+
+<a id='TheDataMustFlow.@morphism-Tuple{Symbol,Any,Expr}' href='#TheDataMustFlow.@morphism-Tuple{Symbol,Any,Expr}'>#</a>
+**`TheDataMustFlow.@morphism`** &mdash; *Macro*.
+
+
+
+```
+@morphism(direction::Symbol, src, block::Expr)
+```
+
+Create a morphism using the source or sink `src` and functions given in `block`.  See `@morph` documentation for valid forms of `block`.
+
+Example:
+
+```julia
+m = @morphism Pull src begin
+    function (a::Col{:A}, b::Col{:B})
+        a .- b
+    end
+end
+```
 

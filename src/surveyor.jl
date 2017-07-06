@@ -275,9 +275,9 @@ end
 function surveyall{T<:Integer}(f::Union{Function,Surveyor}, idx::AbstractVector{T};
                                batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
     iter = batchiter(f, idx; batch_size=batch_size)
-    o = Vector{T}()  # no way of predicting the size of this
-    for idxo ∈ iter
-        append!(o, idxo)
+    o = nothing
+    for sv ∈ iter  # TODO this is probably a terrible way of doing this
+        o = sv
     end
     o
 end
