@@ -252,16 +252,12 @@ function surveyor(sv::Surveyor; survey_number::Integer=-1)
     end
 end
 
-function surveyor(src, cols, funcs; kwargs...)
-    surveyor(Surveyor(src, cols, funcs; kwargs...))
-end
+surveyor(src, cols, funcs; kwargs...) = surveyor(Surveyor(src, cols, funcs; kwargs...))
 function surveyor(src, cols, funcs, ::Type{Bool}; kwargs...)
     surveyor(Surveyor(src, cols, funcs; kwargs...), Bool)
 end
 surveyor(src; kwargs...) = surveyor(Surveyor(src; kwargs...))
-function surveyor(src, ::Type{Bool}; kwargs...)
-    surveyor(Surveyor(src; kwargs...), Bool)
-end
+surveyor(src, ::Type{Bool}; kwargs...) = surveyor(Surveyor(src; kwargs...), Bool)
 export surveyor
 
 # TODO currently this is not compatible with what svr returns
