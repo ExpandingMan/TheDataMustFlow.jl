@@ -204,8 +204,13 @@ _surveyor_handle_kwarg(L::AbstractVector) = (x -> (x ∈ L))
 
 function Surveyor(src; lift_nulls::Bool=true, logical_op::Function=(&), pool_cols::AbstractVector=[],
                   kwargs...)
-    cols = convert(Vector{Symbol}, getindex.(kwargs,1))
-    funs = _surveyor_handle_kwarg.(getindex.(kwargs,2))
+    if length(kwargs) == 0  # this is also an awful hack
+        cols = [1]
+        funs = Function[x -> true]
+    else
+        cols = convert(Vector{Symbol}, getindex.(kwargs,1))
+        funs = _surveyor_handle_kwarg.(getindex.(kwargs,2))
+    end
     Surveyor(src, cols, funs; lift_nulls=lift_nulls, logical_op=logical_op, pool_cols=pool_cols)
 end
 #=========================================================================================
@@ -268,8 +273,8 @@ function batchiter(sv::Surveyor, idx::AbstractVector{<:Integer};
 end
 
 
-function surveyall{T<:Integer}(f::Union{Function,Surveyor}, idx::AbstractVector{T};
-                               batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+function surveyall(f::Union{Function,Surveyor}, idx::AbstractVector{T};
+                   batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE) where T<:Integer
     iter = batchiter(f, idx; batch_size=batch_size)
     o = nothing
     for sv ∈ iter  # TODO this is probably a terrible way of doing this
@@ -277,16 +282,16 @@ function surveyall{T<:Integer}(f::Union{Function,Surveyor}, idx::AbstractVector{
     end
     o
 end
-function surveyall{T<:Integer}(src, cols::AbstractVector, funcs::AbstractVector{<:Function},
-                               idx::AbstractVector{T};
-                               lift_nulls::Bool=true, logical_op::Function=(&),
-                               pool_cols::AbstractVector=[],
-                               batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)
+function surveyall(src, cols::AbstractVector, funcs::AbstractVector{<:Function},
+                   idx::AbstractVector{T};
+                   lift_nulls::Bool=true, logical_op::Function=(&),
+                   pool_cols::AbstractVector=[],
+                   batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE) where T<:Integer
     surveyall(Surveyor(src, cols, funcs; lift_nulls=lift_nulls, logical_op=logical_op),
               idx, batch_size=batch_size)
 end
-function surveyall{T<:Integer}(src, idx::AbstractVector{T};
-                               batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE, kwargs...)
+function surveyall(src, idx::AbstractVector{T};
+                   batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE, kwargs...) where T<:Integer
     surveyall(Surveyor(src; kwargs...), idx, batch_size=batch_size)
 end
 function surveyall(sv::Surveyor; batch_size::Integer=DEFAULT_SURVEY_BATCH_SIZE)

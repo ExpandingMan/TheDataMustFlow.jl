@@ -190,19 +190,19 @@ If the `AbstractMorphism` passed to `morphism` is of `Push` type, then the funct
 returned by `morphism` will accept an `AbstractVector{<:Integer}` index argument followed
 by one argument for each function `M` was constructed with.  See `Morphism` for more details.
 """
-function morphism{D<:MapDirection,R}(::Type{D}, s, sch::Data.Schema,
-                                     cols::AbstractVector{<:Tuple},
-                                     funcs::AbstractVector{<:Function}, ::Type{R}=Tuple)
+function morphism(::Type{D}, s, sch::Data.Schema,
+                  cols::AbstractVector{<:Tuple},
+                  funcs::AbstractVector{<:Function}, ::Type{R}=Tuple) where {D<:MapDirection,R}
     morphism(Morphism{D}(s, sch, cols, funcs), R)
 end
-function morphism{D<:MapDirection,R}(::Type{D}, s, cols::AbstractVector{<:Tuple},
-                                     funcs::AbstractVector{<:Function}, ::Type{R}=Tuple)
+function morphism(::Type{D}, s, cols::AbstractVector{<:Tuple},
+                  funcs::AbstractVector{<:Function}, ::Type{R}=Tuple) where {D<:MapDirection,R}
     morphism(Morphism{D}(s, cols, funcs), R)
 end
 
 # single function constructor
-function morphism{D<:MapDirection,R}(::Type{D}, s, cols::AbstractVector, f::Function,
-                                     ::Type{R}=Tuple)
+function morphism(::Type{D}, s, cols::AbstractVector, f::Function,
+                  ::Type{R}=Tuple) where {D<:MapDirection,R}
     morphism(Morphism{D}(s, cols, f))
 end
 
@@ -235,7 +235,7 @@ function _morphism_return_func(m::AbstractMorphism{Pull}, colstypes::Vector,
     end
 end
 
-function morphism{R}(m::AbstractMorphism{Pull}, ::Type{R}=Tuple)
+function morphism(m::AbstractMorphism{Pull}, ::Type{R}=Tuple) where R
     allcols = collect(∪((Set(a) for a ∈ m.cols)...))
     alltypes = coltypes(m.schema, allcols)
     colstypes = collect(zip(allcols, alltypes))
@@ -253,10 +253,10 @@ end
 #=========================================================================================
     <Push>
 =========================================================================================#
-function _pushforward_column{T,To}(m::AbstractMorphism{Push},
-                                   col::AbstractVector{T}, ::Type{To},
-                                   idx::AbstractVector{<:Integer},
-                                   tocol::Integer)
+function _pushforward_column(m::AbstractMorphism{Push},
+                             col::AbstractVector{T}, ::Type{To},
+                             idx::AbstractVector{<:Integer},
+                             tocol::Integer) where {T,To}
     streamto!(m.s, Data.Column, convert(To, col), idx, tocol, m.schema)
 end
 

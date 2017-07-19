@@ -64,9 +64,9 @@ export Harvester
 #=========================================================================================
     <intermediate constructors>
 =========================================================================================#
-_coerce_vec{T}(::Type{T}, v::AbstractVector, val) = convert(Vector{T}, v)
-_coerce_vec{T}(::Type{T}, v::AbstractVector, ::Type{Void}) = convert(Vector{T}, v)
-function _coerce_vec{T}(::Type{T}, v::NullableVector, f::Function)
+_coerce_vec(::Type{T}, v::AbstractVector, val) where T = convert(Vector{T}, v)
+_coerce_vec(::Type{T}, v::AbstractVector, ::Type{Void}) where T = convert(Vector{T}, v)
+function _coerce_vec(::Type{T}, v::NullableVector, f::Function) where T
     ℓ = length(v)
     o = Vector{T}(ℓ)
     for i ∈ 1:ℓ
@@ -74,24 +74,24 @@ function _coerce_vec{T}(::Type{T}, v::NullableVector, f::Function)
     end
     o
 end
-_coerce_vec{T}(::Type{T}, v::NullableVector, val) = _coerce_vec(T, v, () -> val)
-_coerce_vec{T}(::Type{T}, v::NullableVector, ::Type{Void}) = convert(Vector{T}, v)
+_coerce_vec(::Type{T}, v::NullableVector, val) where T = _coerce_vec(T, v, () -> val)
+_coerce_vec(::Type{T}, v::NullableVector, ::Type{Void}) where T = convert(Vector{T}, v)
 
 
 # this returns the core function which just converts and concatenates
-function _create_hcat_convert{T}(::Type{T}, val)
+function _create_hcat_convert(::Type{T}, val) where T
     (vs::AbstractVector...) -> hcat((_coerce_vec(T, v, val) for v ∈ vs)...)
 end
 
-function Harvester{T}(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector...;
-                      null_replacement=nothing)
+function Harvester(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector...;
+                   null_replacement=nothing) where T
     cols = Tuple[tuple(mc...) for mc ∈ matrix_cols]
     funcs = Function[_create_hcat_convert(T, null_replacement) for c ∈ cols]
     Harvester(s, sch, cols, funcs)
 end
 
-function Harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector...;
-                      null_replacement=nothing)
+function Harvester(s, ::Type{T}, matrix_cols::AbstractVector...;
+                   null_replacement=nothing) where T
     Harvester(s, T, Data.schema(s), matrix_cols..., null_replacement=null_replacement)
 end
 #=========================================================================================
@@ -106,7 +106,7 @@ Returns a function `harvest(idx)` which will return matrices generated from the 
 specified by `idx`.
 """
 harvester(h::Harvester) = morphism(h)
-function harvester{T}(s, ::Type{T}, matrix_cols::AbstractVector...)
+function harvester(s, ::Type{T}, matrix_cols::AbstractVector...) where T
     harvester(Harvester(s, T, matrix_cols...))
 end
 export harvester
