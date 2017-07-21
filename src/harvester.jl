@@ -50,7 +50,7 @@ struct Harvester <: AbstractMorphism{Pull}
     function Harvester(s, sch::Data.Schema,
                        cols::AbstractVector{<:Tuple},
                        funcs::AbstractVector{<:Function})
-        cols = Tuple[_handle_col_args(sch, t) for t ∈ cols]
+        cols = Tuple[_handle_col_args(sch, t) for t ∈ cols]  # this should usually be redundant
         new(s, sch, cols, funcs)
     end
     function Harvester(s, cols::AbstractVector{<:Tuple},
@@ -64,35 +64,35 @@ export Harvester
 #=========================================================================================
     <intermediate constructors>
 =========================================================================================#
-_coerce_vec(::Type{T}, v::AbstractVector, val) where T = convert(Vector{T}, v)
-_coerce_vec(::Type{T}, v::AbstractVector, ::Type{Void}) where T = convert(Vector{T}, v)
-function _coerce_vec(::Type{T}, v::NullableVector, f::Function) where T
-    ℓ = length(v)
-    o = Vector{T}(ℓ)
-    for i ∈ 1:ℓ
-        v.isnull[i] ? (o[i] = f()) : (o[i] = v.values[i])
-    end
-    o
+function _handle_category_dict(sch::Data.Schema, cols::Tuple, dict::Dict)::Dict{Int,CategoricalPool}
+    Dict{Int,CategoricalPool}(findfirst(cols, _handle_col_arg(sch, k))=>v for (k,v) ∈ dict)
 end
-_coerce_vec(::Type{T}, v::NullableVector, val) where T = _coerce_vec(T, v, () -> val)
-_coerce_vec(::Type{T}, v::NullableVector, ::Type{Void}) where T = convert(Vector{T}, v)
-
 
 # this returns the core function which just converts and concatenates
-function _create_hcat_convert(::Type{T}, val) where T
-    (vs::AbstractVector...) -> hcat((_coerce_vec(T, v, val) for v ∈ vs)...)
+function _create_hcat_convert(::Type{T}, ::Void, cat::Dict) where T
+    function (vs::AbstractVector...)
+        hcat((coerce(T, v, get(cat, i, nothing)) for (i,v) ∈ enumerate(vs))...)
+    end
+end
+
+function _create_hcat_convert(::Type{T}, nullfunc::Function, cat::Dict) where T
+    function (vs::AbstractVector...)
+        hcat((coerce(T, v, nullfunc, get(cat, i, nothing)) for (i,v) ∈ enumerate(vs))...)
+    end
 end
 
 function Harvester(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector...;
-                   null_replacement=nothing) where T
-    cols = Tuple[tuple(mc...) for mc ∈ matrix_cols]
-    funcs = Function[_create_hcat_convert(T, null_replacement) for c ∈ cols]
+                   null_replacement=nothing, categories::Dict=Dict()) where T
+    cols = Tuple[_handle_col_args(sch, tuple(mc...)) for mc ∈ matrix_cols]
+    categories = _handle_category_dict(sch, cols[1], categories)
+    funcs = Function[_create_hcat_convert(T, null_replacement, categories) for c ∈ cols]
     Harvester(s, sch, cols, funcs)
 end
 
 function Harvester(s, ::Type{T}, matrix_cols::AbstractVector...;
-                   null_replacement=nothing) where T
-    Harvester(s, T, Data.schema(s), matrix_cols..., null_replacement=null_replacement)
+                   null_replacement=nothing, categories::Dict=Dict()) where T
+    Harvester(s, T, Data.schema(s), matrix_cols..., null_replacement=null_replacement,
+              categories=categories)
 end
 #=========================================================================================
     </intermediate constructors>
@@ -106,8 +106,9 @@ Returns a function `harvest(idx)` which will return matrices generated from the 
 specified by `idx`.
 """
 harvester(h::Harvester) = morphism(h)
-function harvester(s, ::Type{T}, matrix_cols::AbstractVector...) where T
-    harvester(Harvester(s, T, matrix_cols...))
+function harvester(s, ::Type{T}, matrix_cols::AbstractVector...; null_replacement=nothing,
+                   categories::Dict=Dict()) where T
+    harvester(Harvester(s, T, matrix_cols..., null_replacement=null_replacement, categories=categories))
 end
 export harvester
 

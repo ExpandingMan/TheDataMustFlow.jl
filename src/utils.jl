@@ -82,3 +82,67 @@ export batchiter
 =========================================================================================#
 
 
+#=========================================================================================
+    <CategoricalArrays>
+
+    Extensions of CategoricalArrays functionality
+=========================================================================================#
+function lookup(::Type{T}, v::AbstractVector, p::CategoricalPool) where T
+    convert.(T, getindex.(p.invindex, v))
+end
+#=========================================================================================
+    </CategoricalArrays>
+=========================================================================================#
+
+
+#=========================================================================================
+    <vector coercion>
+
+    Methods for getting crap vectors into nice forms.
+=========================================================================================#
+function coerce(::Type{T}, v::AbstractVector)::Vector{T} where T
+    convert(Vector{T}, v)
+end
+
+function coerce(::Type{T}, v::AbstractVector, null_replace)::Vector{T} where T
+    convert(Vector{T}, v)
+end
+
+function coerce(::Type{T}, v::NullableVector, f::Function)::Vector{T} where T
+    ℓ = length(v)
+    o = Vector{T}(ℓ)
+    for i ∈ 1:ℓ
+        o[i] = v.isnull[i] ? f() : v.values[i]
+    end
+    o
+end
+
+function coerce(::Type{T}, v::NullableVector, null_replace)::Vector{T} where T
+    coerce(T, v, () -> null_replace)
+end
+function coerce(::Type{T}, v::NullableVector, ::Void)::Vector{T} where T
+    convert(Vector{T}, v)
+end
+
+function coerce(::Type{T}, v::AbstractVector, cat::CategoricalPool)::Vector{T} where T<:Real
+    lookup(T, v, cat)
+end
+
+function coerce(::Type{T}, v::AbstractVector, null_replace, cat::CategoricalPool)::Vector{T} where T
+    coerce(T, v, cat)
+end
+
+function coerce(::Type{T}, v::AbstractVector, null_replace, ::Void)::Vector{T} where T
+    coerce(T, v, null_replace)
+end
+
+function coerce(::Type{T}, v::NullableVector, null_replace, cat::CategoricalPool)::Vector{T} where T
+    lookup(T, coerce(T, v, null_replace), cat)
+end
+
+export coerce
+#=========================================================================================
+    </vector coercion>
+=========================================================================================#
+
+
