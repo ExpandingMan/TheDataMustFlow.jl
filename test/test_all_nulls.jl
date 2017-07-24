@@ -27,9 +27,7 @@ idx = sv[]
 
 
 # construct Harvester
-h = Harvester(src, Float32, [:Header2, :B], null_replacement=(() -> -rand()),
-              categories=Dict(:Header2=>getpool(sv, :Header2)))
-harvest = harvester(h)
+harvest = harvester(sv, Float32, [:Header2, :B], null_replacement=(() -> -rand()))
 
 # create a sink to put data back into
 dtypes = [DataType[eltype(dt) for dt ∈ Data.types(src_sch)]; Float32; Float32]

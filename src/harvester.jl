@@ -81,7 +81,7 @@ function _create_hcat_convert(::Type{T}, nullfunc::Function, cat::Dict) where T
     end
 end
 
-function Harvester(s, ::Type{T}, sch::Data.Schema, matrix_cols::AbstractVector...;
+function Harvester(s, sch::Data.Schema, ::Type{T}, matrix_cols::AbstractVector...;
                    null_replacement=nothing, categories::Dict=Dict()) where T
     cols = Tuple[_handle_col_args(sch, tuple(mc...)) for mc ∈ matrix_cols]
     categories = _handle_category_dict(sch, cols[1], categories)
@@ -91,8 +91,15 @@ end
 
 function Harvester(s, ::Type{T}, matrix_cols::AbstractVector...;
                    null_replacement=nothing, categories::Dict=Dict()) where T
-    Harvester(s, T, Data.schema(s), matrix_cols..., null_replacement=null_replacement,
+    Harvester(s, Data.schema(s), T, matrix_cols..., null_replacement=null_replacement,
               categories=categories)
+end
+
+function Harvester(svr::Surveyor, ::Type{T}, matrix_cols::AbstractVector...;
+                   null_replacement=nothing) where T
+    cats = getpool(Dict, svr)
+    Harvester(svr.s, svr.schema, T, matrix_cols..., null_replacement=null_replacement,
+              categories=cats)
 end
 #=========================================================================================
     </intermediate constructors>
@@ -109,6 +116,10 @@ harvester(h::Harvester) = morphism(h)
 function harvester(s, ::Type{T}, matrix_cols::AbstractVector...; null_replacement=nothing,
                    categories::Dict=Dict()) where T
     harvester(Harvester(s, T, matrix_cols..., null_replacement=null_replacement, categories=categories))
+end
+function harvester(svr::Surveyor, ::Type{T}, matrix_cols::AbstractVector...;
+                   null_replacement=nothing) where T
+    harvester(Harvester(svr, T, matrix_cols..., null_replacement=null_replacement))
 end
 export harvester
 

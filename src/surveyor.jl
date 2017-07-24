@@ -96,6 +96,7 @@ end
 export Surveyor
 
 getsurvey(sv::Surveyor, n::Integer) = sv.surveys[n]
+getsurvey(sv::Surveyor) = getsurvey(sv, 1)
 
 addsurvey!(sv::Surveyor, surv::Survey) = push!(sv.surveys, surv)
 
@@ -111,12 +112,15 @@ function makesurvey!(sv::Surveyor)
     addsurvey!(sv, surv)[end]
 end
 
-function getpool(sv::Surveyor, col::Int, survey_number::Integer=-1)
+function getpool(::Type{Dict}, sv::Surveyor, survey_number::Integer=-1)
     if survey_number < 0
-        sv.surveys[end].catpools[col]
+        sv.surveys[end].catpools
     else
-        sv.surveys[survey_number].catpools[col]
+        sv.surveys[survey_number].catpools
     end
+end
+function getpool(sv::Surveyor, col::Int, survey_number::Integer=-1)
+    getpool(Dict, sv, survey_number)[col]
 end
 function getpool(sv::Surveyor, col::String, survey_number::Integer=-1)
     getpool(sv, sv.schema[col], survey_number)

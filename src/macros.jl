@@ -1,4 +1,6 @@
 
+# TODO this is FUBAR since I started working on the conversions
+
 #===================================================================================================
     <@morph>
 ===================================================================================================#
@@ -8,40 +10,62 @@ _morph_fix_col_arg(arg) = col
 
 function _morph_parse_args(args::Vector)
     cols = Vector{Any}(length(args))
+    dtypes = Vector{Symbol}(length(args))
     newargs = Vector{Expr}(length(args))
     for (i,arg) ∈ enumerate(args)
         if @capture(arg, n_::Col{col_})
             cols[i] = _morph_fix_col_arg(col)
+            dtypes[i] = Any
+            newargs[i] = :($n::AbstractVector)
+        elseif @capture(arg, n_::Col{col_,dtype_})
+            cols[i] = _morph_fix_col_arg(col)
+            dtypes[i] = dtype
             newargs[i] = :($n::AbstractVector)
         else
-            println(args)
             throw(ArgumentError("Invalid morphism argument $arg."))
         end
     end
-    cols, Expr(:tuple, newargs...)
+    cols, dtypes, newargs
 end
 
 function _morph_parse_args(func::Expr)
     if @capture(func, function (args__,) body_ end | (args__,) -> body_)
-        cols, args = _morph_parse_args(args)
-        cols, args, body
+        cols, dtypes, args = _morph_parse_args(args)
+        cols, dtypes, args, body
     else
-        [], Expr(:tuple), Expr(:tuple)
+        [], Symbol[], Expr[], Expr(:tuple)
     end
 end
 
-function _morph(m, cols::AbstractVector, args::Expr, body::Expr)
+function _coerce_cols_exprs(args::AbstractVector, dtypes::AbstractVector)
+    args = [arg.args[1] for arg ∈ args]
+    exprs = Vector{Expr}(length(args))
+    for i ∈ 1:length(args)
+        exprs[i] = :($(args[i]) = coerce($(dtypes[i]), $(args[i])))
+    end
+    quote
+        $(exprs...)
+    end
+end
+
+function _morph(m, cols::AbstractVector, dtypes::AbstractVector, args::AbstractVector, body::Expr)
+    coercions = _coerce_cols_exprs(args, dtypes)
+    funcname = gensym()
     esc(quote
-        TheDataMustFlow.addfunc!($m, $cols, $args -> $body)
+        function $funcname($(args...))
+            $coercions
+            $body
+        end
+        TheDataMustFlow.addfunc!($m, $cols, $funcname)
     end)
 end
 
 function _morph(m, func::Expr)
-    cols, args, body = _morph_parse_args(func)
+    cols, dtypes, args, body = _morph_parse_args(func)
     if length(cols) == 0
         return func
     end
-    _morph(m, cols, args, body)
+    _morph(m, cols, dtypes, args, body)
 end
 
 _morph(m, func) = func
