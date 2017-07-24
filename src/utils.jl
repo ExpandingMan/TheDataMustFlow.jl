@@ -100,6 +100,11 @@ end
 
     Methods for getting crap vectors into nice forms.
 =========================================================================================#
+function unwrap(v::NullableVector{T})::Vector{T} where T
+    convert(Vector{T}, v)
+end
+
+
 function coerce(::Type{T}, v::AbstractVector)::Vector{T} where T
     convert(Vector{T}, v)
 end
@@ -126,6 +131,10 @@ end
 
 function coerce(::Type{T}, v::AbstractVector, cat::CategoricalPool)::Vector{T} where T<:Real
     lookup(T, v, cat)
+end
+
+function coerce(::Type{T}, v::NullableVector, cat::CategoricalPool)::Vector{T} where T<:Real
+    lookup(T, unwrap(v), cat)
 end
 
 function coerce(::Type{T}, v::AbstractVector, null_replace, cat::CategoricalPool)::Vector{T} where T
