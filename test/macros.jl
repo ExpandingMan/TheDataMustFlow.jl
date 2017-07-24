@@ -14,15 +14,13 @@ M = Morphism{Pull}(src)
 
 # M = @morphism Pull src (a::Col{:A}, b::Col{:B}) -> convert(Array, a .+ b)
 
-# M = @morphism Pull src begin
-#     (a::Col{:A}, b::Col{:B}) -> Float64[a b]
-# end
+expr = :(@morph M function (a::Col{:A}, b::Col{:B})
+             Float32[a b]
+         end)
 
-
-
-expr = :(@morph M function (a::Col{:A,UInt16}, b::Col{:B,UInt16})
-    Float64[a b]
-end)
+# expr = :(@morph M function (a::Col{:A,UInt16}, b::Col{:B,UInt16})
+#     Float64[a b]
+# end)
 
 mac = macroexpand(expr)
 

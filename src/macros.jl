@@ -15,7 +15,7 @@ function _morph_parse_args(args::Vector)
     for (i,arg) ∈ enumerate(args)
         if @capture(arg, n_::Col{col_})
             cols[i] = _morph_fix_col_arg(col)
-            dtypes[i] = Any
+            dtypes[i] = :Any
             newargs[i] = :($n::AbstractVector)
         elseif @capture(arg, n_::Col{col_,dtype_})
             cols[i] = _morph_fix_col_arg(col)
@@ -39,9 +39,11 @@ end
 
 function _coerce_cols_exprs(args::AbstractVector, dtypes::AbstractVector)
     args = [arg.args[1] for arg ∈ args]
-    exprs = Vector{Expr}(length(args))
+    exprs = Vector{Expr}()
     for i ∈ 1:length(args)
-        exprs[i] = :($(args[i]) = coerce($(dtypes[i]), $(args[i])))
+        if dtypes[i] ≠ :Any
+            push!(exprs, :($(args[i]) = coerce($(dtypes[i]), $(args[i]))))
+        end
     end
     quote
         $(exprs...)
@@ -74,20 +76,23 @@ _morph(m, func) = func
 """
     @morph(m, block::Expr)
 
-Appends functions to the Morphism object `m`.  Every anonymous function appearing in the block will
-be added to `m`.  Functions should take arguments with the special type `Col{column_name}` where
-`column_name` is an integer, string or symbol designating the column to be used as an argument.
+Appends functions to the Morphism object `m`.  Every anonymous function
+appearing in the block will be added to `m`.  Functions should take arguments
+with the special type `Col{column_name}` or `Col{column_name,data_type}` where
+`column_name` is an integer, string or symbol designating the column to be used
+as an argument, and the optional `data_type` is the data type that the elements
+of this column should be converted to.
 
 For example
 ```julia
 @morph M (a::Col{:A}, b::Col{:B}) -> a .+ b
 
 @morph M begin
-    function (a::Col{:A}, b::Col{:B})
+    function (a::Col{:A,Float32}, b::Col{:B})
         a .- b
     end
 
-    (c::Col{:C}, d::Col{:D}) -> c .* d
+    (c::Col{:C}, d::Col{:D,Int}) -> c .* d
 end
 ```
 Functions not matching this pattern will be unchanged.
@@ -110,7 +115,7 @@ documentation for valid forms of `block`.
 Example:
 ```julia
 m = @morphism Pull src begin
-    function (a::Col{:A}, b::Col{:B})
+    function (a::Col{:A,Float32}, b::Col{:B,Float32})
         a .- b
     end
 end
