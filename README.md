@@ -1,6 +1,8 @@
 
 <a id='TheDataMustFlow-1'></a>
 
+***STATUS:*** I'm considering using this package name to implement a different work flow.
+
 # TheDataMustFlow
 
 
