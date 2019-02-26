@@ -1,52 +1,28 @@
-__precompile__(true)
-
 module TheDataMustFlow
 
-using DataStreams
-using NullableArrays
-using CategoricalArrays
 using MacroTools
 
-import Base.convert
-import Base.identity
-import Base.eltype
-import Base.getindex
-import Base.size
 
-const DEFAULT_BATCH_SIZE = 16384
-const DEFAULT_SURVEY_BATCH_SIZE = 2^18
-const DEFAULT_HARVEST_BATCH_SIZE = 16384
-const DEFAULT_SOW_BATCH_SIZE = 16384
+abstract type DataRemote end
 
-#=========================================================================================
-    TODO list:
-    √  -1. Implement generic Morphism object and make everything descend from it.
-    √   0. Switch to using Tasks in anticipation of parallelization.
-    √   1. Finish harvester and sower basic implementation.
-    √   -. Sower *must* be able to both insert into existing and extract to new.
-    √   -. Implement source and sink interfaces for Harvester and Sower.
-        2. Figure out what to do about categorical shit.
-        3. Figure out DataStreams PR for pulling partial columns.
-    √   4. Handling of nulls.
-        5. Figure out batch alignment and truncation.
-        6. Allow FilterStreams to handle arbitrarily complicated constraints.
-        7. Vastly improve interface.
-        8. Documentation.
-        9. Do for time series.
-        10. Consider making all morphisms single-function, but with methods
-            for Vector{<:AbstractMorphism}.
-=========================================================================================#
+abstract type AbstractMetaData end
+abstract type AbstractDataSet end
+abstract type AbstractInput end
+abstract type AbstractProblem end
 
-include("abstracts.jl")
-include("utils.jl")
-include("datastreams_extensions.jl")
-include("morphism.jl")
-include("surveyor.jl")
-include("harvester.jl")
-include("sower.jl")
-include("migrator.jl")
-include("datastreams.jl")
-include("macros.jl")
+abstract type ProjectTag end
+abstract type Tag end
+abstract type TableTag <: Tag end
 
+
+include("dataremote.jl")
+include("dataset.jl")
+
+
+export DataRemote, ProjectTag, Tag, TableTag
+export directory!
+export @tag, @tabletag
+export alltags, iscomplete, initialize!, initialize
+export load, load!, save
 
 end # module

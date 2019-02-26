@@ -1,0 +1,13 @@
+name = "TheDataMustFlow"
+uuid = "4d124972-3961-11e9-11dc-2d9cf0f1badf"
+authors = ["ExpandingMan <expandingman@protonmail.com>"]
+version = "0.1.0"
+
+[deps]
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
