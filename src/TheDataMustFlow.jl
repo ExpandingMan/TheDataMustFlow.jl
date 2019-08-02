@@ -15,11 +15,19 @@ abstract type Tag end
 abstract type TableTag <: Tag end
 
 
-include("dataremote.jl")
 include("dataset.jl")
 
 
-export DataRemote, ProjectTag, Tag, TableTag
+defaultconfig!(::ProjectTag, d::AbstractDict) = d
+
+function config(::Type{Dict}, ::ProjectTag; kwargs...)
+    d = isempty(kwargs) ? Dict{Symbol,Any}() : convert(Dict{Symbol,Any}, Dict(kwargs))
+    defaultconfig!(tag, d)
+end
+config(tag::ProjectTag; kwargs...) = config(Dict, tag; kwargs...)
+
+
+export ProjectTag, Tag, TableTag
 export directory!
 export @tag, @tabletag
 export alltags, iscomplete, initialize!, initialize
